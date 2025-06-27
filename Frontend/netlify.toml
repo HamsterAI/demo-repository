@@ -1,10 +1,14 @@
 [build]
-  command = "npm run build"
+  command = "npm run build:all"
   functions = "netlify/functions"
   publish = "dist"
 
+[build.environment]
+  DEEPSEEK_API_KEY = "sk-17f7f2fa2de94ee1b0b92049058889c9"
+  
 [functions]
   node_bundler = "esbuild"
+  environment = {DEEPSEEK_API_KEY="sk-17f7f2fa2de94ee1b0b92049058889c9"}
 
 [[redirects]]
   from = "/*"
@@ -14,6 +18,7 @@
 [dev]
   command = "npm run dev:vite"
   port = 8888
+  functions=".netlify/functions"
   targetPort = 5173
   framework = "#auto"
   autoLaunch = true

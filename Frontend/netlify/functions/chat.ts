@@ -65,7 +65,7 @@ Return:
 Please only return JSON format results, do not include other text explanations.`;
 
 // Netlify Functions的处理器函数
-export const handler: Handler = async (event, context) => {
+export const handler: Handler = async (event) => {
   // 设置CORS头部，允许跨域请求
   const headers = {
     'Access-Control-Allow-Origin': '*',           // 允许所有域名访问
@@ -81,7 +81,11 @@ export const handler: Handler = async (event, context) => {
       body: '',
     };
   }
-
+  const apiKey = process.env.DEEPSEEK_API_KEY?.trim() ;
+  if (!apiKey) {
+    throw new Error('DeepSeek API key is missing in environment variables');
+  }
+  else console.log('DeepSeek API key is set',{apiKey});
   // 只允许POST方法
   if (event.httpMethod !== 'POST') {
     return {
@@ -116,12 +120,13 @@ export const handler: Handler = async (event, context) => {
       { role: 'user', content: message } // 当前用户消息
     ];
 
+
     // 调用DeepSeek API
     const response = await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`, // 使用环境变量中的API密钥
+        'Authorization': `Bearer ${apiKey}`, // 使用环境变量中的API密钥
       },
       body: JSON.stringify({
         model: 'deepseek-chat',    // 使用DeepSeek聊天模型
@@ -136,8 +141,21 @@ export const handler: Handler = async (event, context) => {
       throw new Error(`DeepSeek API error: ${response.status}`);
     }
 
+    interface DeepSeekResponse {
+      choices: Array<{
+        message: {
+          content: string;
+        };
+      }>;
+      usage?: {
+        // 定义usage的具体结构
+        prompt_tokens?: number;
+        completion_tokens?: number;
+        total_tokens?: number;
+      };
+    }
     // 解析API响应
-    const data = await response.json();
+    const data = await response.json() as DeepSeekResponse;
     const aiResponse = data.choices[0].message.content;
 
     // 尝试解析AI返回的JSON格式投资意图

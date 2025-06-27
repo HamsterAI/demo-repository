@@ -7,6 +7,8 @@
     "dev": "netlify dev",
     "dev:vite": "vite",
     "build": "tsc -b && vite build",
+    "build:functions":"tsc  --project tsconfig.functions.json ",
+    "build:all": "npm run build && npm run build:functions",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -22,7 +24,8 @@
     "lucide-react": "^0.263.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "wagmi": "^2.15.6"
+    "wagmi": "^2.15.6",
+    "dotenv":"16.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",
