@@ -1,0 +1,19 @@
+{
+	"geolocation": {
+		"data": {
+			"city": "Changzhou",
+			"country": {
+				"code": "CN",
+				"name": "China"
+			},
+			"subdivision": {
+				"code": "JS",
+				"name": "Jiangsu"
+			},
+			"timezone": "Asia/Shanghai",
+			"latitude": 31.7685,
+			"longitude": 119.9527
+		},
+		"timestamp": 1751007417653
+	}
+}
