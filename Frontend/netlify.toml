@@ -3,12 +3,10 @@
   functions = "netlify/functions"
   publish = "dist"
 
-[build.environment]
-  DEEPSEEK_API_KEY = "sk-17f7f2fa2de94ee1b0b92049058889c9"
+
   
 [functions]
   node_bundler = "esbuild"
-  environment = {DEEPSEEK_API_KEY="sk-17f7f2fa2de94ee1b0b92049058889c9"}
 
 [[redirects]]
   from = "/*"

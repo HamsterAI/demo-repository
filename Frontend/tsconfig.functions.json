@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.node.json",
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "CommonJS",
+    "outDir": "./.netlify/functions",
+    "moduleResolution": "node",  // 修改为 node 而不是 bundler
+    "allowImportingTsExtensions": false,  // 禁用此选项或确保符合条件
+    "noEmit": false,
+    "esModuleInterop": true,
+    "strict": true,
+    "skipLibCheck": true
+  },
+  "include": [
+    "netlify/functions/**/*.ts"
+  ]
+}
