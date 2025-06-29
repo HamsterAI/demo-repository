@@ -10,16 +10,44 @@ import fs from "fs";
 import { KEYPAIR_PATHS } from "./config-parser";
 import { AnchorProvider, Wallet } from '@coral-xyz/anchor';
 import { createLogger } from "../../../ccip-lib/svm/utils/logger";
+import dotenv from "dotenv";
+import bs58 from "bs58";
+
+// Load environment variables
+dotenv.config();
 
 const logger = createLogger('Provider');
 
 /**
- * Loads a keypair from a file
- * @param filePath Path to keypair file
+ * Loads a keypair from a file or environment variable
+ * @param filePath Path to keypair file (fallback if env var not available)
  * @returns Keypair
  */
 export function loadKeypair(filePath: string = KEYPAIR_PATHS.DEFAULT): Keypair {
   try {
+    // First try to load from environment variable
+    const envPrivateKey = process.env.SOLANA_PRIVATE_KEY;
+    if (envPrivateKey) {
+      logger.info('Loading keypair from SOLANA_PRIVATE_KEY environment variable');
+      
+      // Check if private key is in base58 format (typical for wallet exports)
+      if (envPrivateKey.length > 80 && /^[1-9A-HJ-NP-Za-km-z]+$/.test(envPrivateKey)) {
+        // base58 format
+        logger.info('Detected base58 format private key');
+        const privateKeyBytes = bs58.decode(envPrivateKey);
+        return Keypair.fromSecretKey(privateKeyBytes);
+      } else {
+        // hex format
+        logger.info('Detected hex format private key');
+        // Remove '0x' prefix if present
+        const cleanPrivateKey = envPrivateKey.startsWith('0x') ? envPrivateKey.slice(2) : envPrivateKey;
+        const privateKeyBytes = Buffer.from(cleanPrivateKey, 'hex');
+        return Keypair.fromSecretKey(privateKeyBytes);
+      }
+    }
+
+    // Fallback to file-based keypair
+    logger.info(`Loading keypair from file: ${filePath}`);
     const keypairData = fs.readFileSync(filePath, "utf-8");
     const keypairJson = JSON.parse(keypairData);
     return Keypair.fromSecretKey(Buffer.from(keypairJson));
@@ -93,11 +121,14 @@ export function createKeypairProvider(
       tx: Transaction | VersionedTransaction
     ): Promise<Transaction | VersionedTransaction> {
       if (tx instanceof VersionedTransaction) {
+        // For VersionedTransaction, use the new signing method
         tx.sign([keypair]);
+        return tx;
       } else {
+        // For traditional Transaction, use partialSign
         tx.partialSign(keypair);
+        return tx;
       }
-      return tx;
     },
   };
 }

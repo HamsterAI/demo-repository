@@ -6,7 +6,7 @@ import { createLogger, LogLevel } from "../../../ccip-lib/svm";
 import { getCCIPSVMConfig, ChainId } from "../../config";
 import { loadKeypair } from "../utils";
 import { KEYPAIR_PATHS } from "../utils/config-parser";
-
+import "dotenv/config";
 /**
  * Deploys the CCIP Basic Receiver program to Solana devnet.
  * Checks balance and executes the deployment command directly.

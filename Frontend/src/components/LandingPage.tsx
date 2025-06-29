@@ -15,9 +15,12 @@ import {
   Wallet,
 } from "lucide-react";
 
-import { DynamicWidget } from "@dynamic-labs/sdk-react-core";
+interface LandingPageProps {
+  isLoggedIn: boolean;
+  onLoginClick: () => void;
+}
 
-const LandingPage: React.FC = () => {
+const LandingPage: React.FC<LandingPageProps> = ({ isLoggedIn, onLoginClick }) => {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
@@ -126,7 +129,21 @@ const LandingPage: React.FC = () => {
       {/* Hero Section */}
       <section className="relative overflow-hidden">
         <div className="sticky top-4 left-2 z-50 ml-4 inline-block">
-          <DynamicWidget />
+          {isLoggedIn ? (
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-3 border border-slate-200/60">
+              <div className="flex items-center space-x-2">
+                <Wallet className="w-5 h-5 text-green-600" />
+                <span className="text-sm font-medium text-slate-700">已连接</span>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={onLoginClick}
+              className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-xl font-semibold shadow-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-200"
+            >
+              连接钱包
+            </button>
+          )}
         </div>
         <div className="absolute inset-0 bg-gradient-to-r from-purple-600/10 via-blue-600/10 to-cyan-600/10"></div>
 
@@ -166,10 +183,23 @@ const LandingPage: React.FC = () => {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <button className="group px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-2xl font-semibold text-lg shadow-2xl hover:shadow-3xl hover:from-purple-700 hover:to-blue-700 transition-all duration-300 transform hover:scale-105 flex items-center space-x-2">
-                <span>Experience OmniNest Now</span>
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </button>
+              {isLoggedIn ? (
+                <button 
+                  onClick={() => window.location.href = '#chat'}
+                  className="group px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-2xl font-semibold text-lg shadow-2xl hover:shadow-3xl hover:from-purple-700 hover:to-blue-700 transition-all duration-300 transform hover:scale-105 flex items-center space-x-2"
+                >
+                  <span>开始投资</span>
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </button>
+              ) : (
+                <button 
+                  onClick={onLoginClick}
+                  className="group px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-2xl font-semibold text-lg shadow-2xl hover:shadow-3xl hover:from-purple-700 hover:to-blue-700 transition-all duration-300 transform hover:scale-105 flex items-center space-x-2"
+                >
+                  <span>开始使用</span>
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </button>
+              )}
 
               <button className="px-8 py-4 bg-white/80 backdrop-blur-sm text-slate-700 rounded-2xl font-semibold text-lg border border-slate-200 hover:bg-white hover:shadow-xl transition-all duration-300 transform hover:scale-105">
                 Learn More
@@ -198,28 +228,20 @@ const LandingPage: React.FC = () => {
               Powerful Features
             </h2>
             <p className="text-xl text-slate-600 max-w-3xl mx-auto">
-              Discover the innovative capabilities that make OmniNest the
-              ultimate cross-chain RWA investment platform
+              Experience the future of AI-powered cross-chain investment management
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {features.map((feature, index) => (
               <div
                 key={index}
-                className={`group p-8 rounded-3xl bg-white/80 backdrop-blur-sm border border-slate-200/60 shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:scale-105 ${
-                  isVisible
-                    ? "opacity-100 translate-y-0"
-                    : "opacity-0 translate-y-10"
-                }`}
-                style={{ transitionDelay: `${index * 200}ms` }}
+                className={`bg-white/70 backdrop-blur-sm rounded-2xl p-8 border border-slate-200/60 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1`}
               >
-                <div
-                  className={`w-16 h-16 bg-gradient-to-r ${feature.gradient} rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300`}
-                >
-                  <feature.icon className="w-8 h-8 text-white" />
+                <div className={`w-12 h-12 bg-gradient-to-r ${feature.gradient} rounded-xl flex items-center justify-center mb-6`}>
+                  <feature.icon className="w-6 h-6 text-white" />
                 </div>
-                <h3 className="text-2xl font-bold text-slate-900 mb-4">
+                <h3 className="text-xl font-bold text-slate-900 mb-4">
                   {feature.title}
                 </h3>
                 <p className="text-slate-600 leading-relaxed">
@@ -231,87 +253,37 @@ const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* How It Works Section */}
+      {/* Workflow Section */}
       <section className="py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-6">
-              OmniNest Workflow
+              How It Works
             </h2>
             <p className="text-xl text-slate-600 max-w-3xl mx-auto">
-              See how OmniNest transforms your investment commands into
-              intelligent cross-chain actions
+              From natural language command to executed investment in seconds
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {workflow.map((item, index) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {workflow.map((step, index) => (
               <div
                 key={index}
-                className={`relative group transition-all duration-500 ${
-                  isVisible
-                    ? "opacity-100 translate-y-0"
-                    : "opacity-0 translate-y-10"
-                }`}
-                style={{ transitionDelay: `${index * 150}ms` }}
+                className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-slate-200/60 hover:shadow-xl transition-all duration-300"
               >
-                <div className="p-8 rounded-3xl bg-gradient-to-br from-white/80 to-slate-50/80 backdrop-blur-sm border border-slate-200/60 shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
-                  <div className="flex items-center mb-6">
-                    <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-lg mr-4">
-                      {item.step}
-                    </div>
-                    <div className="w-12 h-12 bg-gradient-to-r from-slate-100 to-slate-200 rounded-xl flex items-center justify-center">
-                      <item.icon className="w-6 h-6 text-slate-600" />
-                    </div>
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-2xl font-bold text-purple-600">
+                    {step.step}
+                  </span>
+                  <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
+                    <step.icon className="w-5 h-5 text-white" />
                   </div>
-                  <h3 className="text-xl font-bold text-slate-900 mb-3">
-                    {item.title}
-                  </h3>
-                  <p className="text-slate-600">{item.description}</p>
                 </div>
-
-                {index < workflow.length - 1 && (
-                  <div className="hidden lg:block absolute top-1/2 -right-4 transform -translate-y-1/2">
-                    <ChevronRight className="w-8 h-8 text-slate-300" />
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Why OmniNest Section */}
-      <section className="py-24 bg-gradient-to-r from-slate-900 via-purple-900 to-slate-900">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-              Why Choose OmniNest?
-            </h2>
-            <p className="text-xl text-slate-300 max-w-3xl mx-auto">
-              Experience the future of cross-chain RWA investment management
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-8">
-            {advantages.map((advantage, index) => (
-              <div
-                key={index}
-                className={`group p-8 rounded-3xl bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 transition-all duration-500 transform hover:scale-105 ${
-                  isVisible
-                    ? "opacity-100 translate-y-0"
-                    : "opacity-0 translate-y-10"
-                }`}
-                style={{ transitionDelay: `${index * 200}ms` }}
-              >
-                <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-blue-500 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                  <advantage.icon className="w-8 h-8 text-white" />
-                </div>
-                <h3 className="text-2xl font-bold text-white mb-4">
-                  {advantage.title}
+                <h3 className="text-lg font-semibold text-slate-900 mb-2">
+                  {step.title}
                 </h3>
-                <p className="text-slate-300 leading-relaxed">
-                  {advantage.description}
+                <p className="text-slate-600 text-sm">
+                  {step.description}
                 </p>
               </div>
             ))}
@@ -319,49 +291,69 @@ const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* Final CTA Section */}
-      <section className="py-24 bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-600">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-            Ready to Transform Your Investment Strategy?
-          </h2>
-          <p className="text-xl text-purple-100 mb-12 leading-relaxed">
-            Join the future of AI-powered cross-chain RWA investment management.
-            Start your smart investment journey today.
-          </p>
-
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <button className="group px-10 py-5 bg-white text-purple-600 rounded-2xl font-bold text-lg shadow-2xl hover:shadow-3xl hover:bg-slate-50 transition-all duration-300 transform hover:scale-105 flex items-center space-x-2">
-              <span>Start Your Smart RWA Investment Journey Today</span>
-              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </button>
+      {/* Advantages Section */}
+      <section className="py-24 bg-white/50 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-6">
+              Why Choose OmniNest
+            </h2>
+            <p className="text-xl text-slate-600 max-w-3xl mx-auto">
+              The advantages that set us apart in the DeFi landscape
+            </p>
           </div>
 
-          <p className="text-purple-200 mt-8 text-sm">
-            Join our early access program and be among the first to experience
-            the future of DeFi
-          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {advantages.map((advantage, index) => (
+              <div
+                key={index}
+                className="flex items-start space-x-4 p-6 bg-white/70 backdrop-blur-sm rounded-2xl border border-slate-200/60 hover:shadow-xl transition-all duration-300"
+              >
+                <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <advantage.icon className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900 mb-2">
+                    {advantage.title}
+                  </h3>
+                  <p className="text-slate-600 leading-relaxed">
+                    {advantage.description}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="py-12 bg-slate-900">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="flex items-center space-x-2 mb-4 md:mb-0">
-              <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg flex items-center justify-center">
-                <Wallet className="w-4 h-4 text-white" />
-              </div>
-              <span className="text-xl font-bold text-white">OmniNest</span>
-            </div>
-
-            <div className="text-slate-400 text-sm">
-              © 2024 OmniNest. Built for the future of cross-chain RWA
-              investment.
-            </div>
-          </div>
+      {/* CTA Section */}
+      <section className="py-24">
+        <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
+          <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-6">
+            Ready to Start Your AI Investment Journey?
+          </h2>
+          <p className="text-xl text-slate-600 mb-8">
+            Join thousands of users who are already experiencing the future of DeFi
+          </p>
+          {isLoggedIn ? (
+            <button 
+              onClick={() => window.location.href = '#chat'}
+              className="group px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-2xl font-semibold text-lg shadow-2xl hover:shadow-3xl hover:from-purple-700 hover:to-blue-700 transition-all duration-300 transform hover:scale-105 flex items-center space-x-2 mx-auto"
+            >
+              <span>开始投资</span>
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </button>
+          ) : (
+            <button 
+              onClick={onLoginClick}
+              className="group px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-2xl font-semibold text-lg shadow-2xl hover:shadow-3xl hover:from-purple-700 hover:to-blue-700 transition-all duration-300 transform hover:scale-105 flex items-center space-x-2 mx-auto"
+            >
+              <span>立即开始</span>
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </button>
+          )}
         </div>
-      </footer>
+      </section>
     </div>
   );
 };

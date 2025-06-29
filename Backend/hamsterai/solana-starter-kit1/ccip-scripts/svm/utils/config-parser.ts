@@ -125,6 +125,12 @@ export function parseCommonArgs(): CommonOptions {
  * @returns The keypair path to use
  */
 export function getKeypairPath(options: CommonOptions): string {
+  // If environment variable is set, use it (will be handled in provider.ts)
+  if (process.env.SOLANA_PRIVATE_KEY) {
+    console.log('Using SOLANA_PRIVATE_KEY from environment variable');
+    return 'env://SOLANA_PRIVATE_KEY';
+  }
+
   // Explicit path takes precedence
   if (options.keypairPath) {
     return options.keypairPath;

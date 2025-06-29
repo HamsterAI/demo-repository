@@ -15,10 +15,14 @@ import {
   DollarSign,
   Target,
   Loader2,
+  LogIn,
+  XCircle,
+  RefreshCw,
 } from "lucide-react";
 
-import { DynamicWidget } from "@dynamic-labs/sdk-react-core";
 import { chatService, ChatMessage, InvestmentIntent } from "../services/chatService";
+import { checkTransferStatus } from "../services/chatService";
+import { walletService, UserWallet } from "../services/walletService";
 
 // 聊天会话接口定义，用于管理多个聊天对话
 interface ChatSession {
@@ -28,13 +32,18 @@ interface ChatSession {
   lastUpdated: Date;    // 最后更新时间
 }
 
-const ChatInterface: React.FC = () => {
+interface ChatInterfaceProps {
+  isLoggedIn: boolean;
+  onLoginClick: () => void;
+}
+
+const ChatInterface: React.FC<ChatInterfaceProps> = ({ isLoggedIn, onLoginClick }) => {
   // 当前聊天的消息列表，初始化包含一条AI欢迎消息
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "1",
       content: "Hello! I'm your AI investment assistant. I can help you manage cross-chain RWA investments. You can tell me your investment needs in natural language, for example: 'I want to invest 30% of my funds into high-yield RWA on Solana'.",
-      sender: "ai",
+      sender: "assistant",
       timestamp: new Date(),
     },
   ]);
@@ -59,6 +68,12 @@ const ChatInterface: React.FC = () => {
   
   // 错误信息状态
   const [error, setError] = useState<string | null>(null);
+  
+  // 钱包信息状态
+  const [walletInfo, setWalletInfo] = useState<UserWallet | null>(null);
+  
+  // 钱包加载状态
+  const [isWalletLoading, setIsWalletLoading] = useState(false);
   
   // DOM引用：用于自动滚动到消息底部
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -93,7 +108,20 @@ const ChatInterface: React.FC = () => {
     
     // 清理超过50个的旧聊天记录，避免本地存储过载
     chatService.cleanupOldChats();
-  }, []);
+    
+    // 如果用户已登录，加载钱包信息
+    if (isLoggedIn) {
+      const loadWalletInfo = async () => {
+        try {
+          const info = await walletService.getUserWallet();
+          setWalletInfo(info);
+        } catch (error) {
+          console.error('加载钱包信息失败:', error);
+        }
+      };
+      loadWalletInfo();
+    }
+  }, [isLoggedIn]);
 
   // 根据用户第一条消息生成聊天标题
   const generateChatTitle = (firstUserMessage: string): string => {
@@ -153,7 +181,7 @@ const ChatInterface: React.FC = () => {
       {
         id: Date.now().toString(),
         content: "Hello! I'm your AI investment assistant. I can help you manage cross-chain RWA investments. You can tell me your investment needs in natural language, for example: 'I want to invest 30% of my funds into high-yield RWA on Solana'.",
-        sender: "ai",
+        sender: "assistant",
         timestamp: new Date(),
       },
     ]);
@@ -200,73 +228,147 @@ const ChatInterface: React.FC = () => {
     const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
     
     if (diffInHours < 1) {
-      const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
-      return diffInMinutes <= 1 ? "Just now" : `${diffInMinutes} minutes ago`;
+      return "刚刚";
     } else if (diffInHours < 24) {
-      return `${diffInHours} hours ago`;
+      return `${diffInHours}小时前`;
     } else {
       const diffInDays = Math.floor(diffInHours / 24);
-      return `${diffInDays} days ago`;
+      return `${diffInDays}天前`;
     }
   };
 
-  // 处理发送消息的主要函数
+  // 处理发送消息
   const handleSend = async () => {
-    // 检查输入是否为空或AI正在处理
     if (!input.trim() || isTyping) return;
 
-    // 创建用户消息对象
+    // 检查用户是否已登录
+    if (!isLoggedIn) {
+      setError("请先登录以使用AI投资助手");
+      onLoginClick();
+      return;
+    }
+
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
-      content: input,
+      content: input.trim(),
       sender: "user",
       timestamp: new Date(),
     };
 
-    // 添加用户消息到消息列表
-    setMessages((prev) => [...prev, userMessage]);
-    setInput(""); // 清空输入框
-    setIsTyping(true); // 设置AI处理状态
-    setError(null); // 清除之前的错误
+    setMessages(prev => [...prev, userMessage]);
+    setInput("");
+    setIsTyping(true);
+    setError(null);
 
     try {
-      // 调用聊天服务发送消息到AI
-      const response = await chatService.sendMessage(input, messages);
+      // 调用聊天服务
+      const response = await chatService.sendMessage(input.trim());
       
-      // 创建AI回复消息对象
-      const aiMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        content: response.response,
-        sender: "ai",
-        timestamp: new Date(),
-      };
+      // 检查是否有转账结果
+      if (response.transferResult && response.transferResult.transferId) {
+        const transferId = response.transferResult.transferId;
+        console.log('🔍 检测到转账ID:', transferId);
+        console.log('转账结果:', response.transferResult);
+        
+        // 添加AI回复
+        const aiMessage: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          content: response.response,
+          sender: "assistant",
+          timestamp: new Date(),
+          transferId: transferId // 保存转账ID
+        };
 
-      // 添加AI回复到消息列表
-      setMessages((prev) => [...prev, aiMessage]);
-      
-      // 如果AI解析出投资意图，保存到状态中显示
+        setMessages(prev => [...prev, aiMessage]);
+        
+        // 开始轮询转账状态
+        console.log('🚀 开始轮询转账状态...');
+        pollTransferStatus(transferId);
+      } else {
+        console.log('❌ 未检测到转账结果或转账ID');
+        // 普通回复
+        const aiMessage: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          content: response.response,
+          sender: "assistant",
+          timestamp: new Date(),
+        };
+
+        setMessages(prev => [...prev, aiMessage]);
+      }
+
+      // 如果有投资意图，保存并显示
       if (response.intent) {
         setLastIntent(response.intent);
       }
 
-    } catch (error) {
-      console.error('Error sending message:', error);
-      setError(error instanceof Error ? error.message : 'Failed to send message');
-      
-      // 添加错误消息
-      const errorMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        content: "Sorry, I can't process your request right now. Please try again later.",
-        sender: "ai",
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, errorMessage]);
+      // 保存聊天记录
+      saveCurrentChat();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "发送消息失败");
     } finally {
-      setIsTyping(false); // 结束AI处理状态
+      setIsTyping(false);
     }
   };
 
-  // 处理键盘事件（Enter发送消息）
+  // 轮询转账状态
+  const pollTransferStatus = async (transferId: string) => {
+    console.log('📡 开始轮询转账状态，ID:', transferId);
+    const maxAttempts = 60; // 最多轮询60次（5分钟）
+    let attempts = 0;
+    
+    const poll = async () => {
+      try {
+        console.log(`🔄 第${attempts + 1}次轮询转账状态...`);
+        const status = await checkTransferStatus(transferId);
+        console.log('📊 轮询结果:', status);
+        
+        if (status.status === 'success' || status.status === 'error') {
+          console.log('✅ 转账完成，停止轮询');
+          // 转账完成，更新消息
+          setMessages(prev => prev.map(msg => 
+            msg.transferId === transferId 
+              ? { ...msg, content: `${msg.content}\n\n${status.message}`, transferStatus: status }
+              : msg
+          ));
+          return; // 停止轮询
+        }
+        
+        console.log('⏳ 转账进行中，继续轮询...');
+        // 更新进行中的状态
+        setMessages(prev => prev.map(msg => 
+          msg.transferId === transferId 
+            ? { ...msg, content: `${msg.content}\n\n${status.message}`, transferStatus: status }
+            : msg
+        ));
+        
+        attempts++;
+        if (attempts < maxAttempts) {
+          setTimeout(poll, 5000); // 5秒后再次轮询
+        } else {
+          console.log('⏰ 轮询超时');
+          // 超时
+          setMessages(prev => prev.map(msg => 
+            msg.transferId === transferId 
+              ? { ...msg, content: `${msg.content}\n\n转账超时，请检查状态。`, transferStatus: { status: 'timeout' } }
+              : msg
+          ));
+        }
+      } catch (error) {
+        console.error('❌ 轮询转账状态失败:', error);
+        attempts++;
+        if (attempts < maxAttempts) {
+          setTimeout(poll, 5000);
+        }
+      }
+    };
+    
+    // 开始轮询
+    console.log('⏰ 2秒后开始第一次轮询...');
+    setTimeout(poll, 2000); // 2秒后开始第一次轮询
+  };
+
+  // 处理键盘事件
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -274,158 +376,297 @@ const ChatInterface: React.FC = () => {
     }
   };
 
-  // 渲染投资意图识别卡片的函数
+  // 简单的Markdown渲染函数
+  const renderMarkdown = (text: string) => {
+    return text
+      // 处理粗体 **text**
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      // 处理斜体 _text_
+      .replace(/_(.*?)_/g, '<em>$1</em>')
+      // 处理列表项 • text
+      .replace(/^•\s*(.*)$/gm, '<li>$1</li>')
+      // 处理换行
+      .replace(/\n/g, '<br>');
+  };
+
+  // 渲染消息内容
+  const renderMessageContent = (content: string, sender: string) => {
+    const isAssistant = sender === 'assistant';
+    
+    if (isAssistant && content.includes('**跨链转账请求已确认**')) {
+      // 这是转账详情消息，使用特殊渲染
+      return (
+        <div 
+          className="text-sm leading-relaxed"
+          dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }}
+        />
+      );
+    } else {
+      // 普通消息
+      return (
+        <p className="text-sm leading-relaxed whitespace-pre-wrap">{content}</p>
+      );
+    }
+  };
+
+  // 渲染投资意图卡片
   const renderIntentCard = (intent: InvestmentIntent) => {
-    // 根据意图类型返回对应图标
     const getIntentIcon = (intentType: string) => {
       switch (intentType) {
-        case 'invest': return <TrendingUp className="w-5 h-5" />;
-        case 'rebalance': return <Target className="w-5 h-5" />;
-        case 'withdraw': return <DollarSign className="w-5 h-5" />;
-        default: return <MessageCircle className="w-5 h-5" />;
+        case "invest": return <TrendingUp className="w-5 h-5" />;
+        case "transfer": return <DollarSign className="w-5 h-5" />;
+        case "rebalance": return <Target className="w-5 h-5" />;
+        default: return <CheckCircle className="w-5 h-5" />;
       }
     };
 
-    // 根据意图类型返回对应颜色渐变
     const getIntentColor = (intentType: string) => {
       switch (intentType) {
-        case 'invest': return 'from-green-500 to-emerald-500';
-        case 'rebalance': return 'from-blue-500 to-cyan-500';
-        case 'withdraw': return 'from-orange-500 to-red-500';
-        default: return 'from-purple-500 to-blue-500';
+        case "invest": return "from-green-500 to-emerald-500";
+        case "transfer": return "from-blue-500 to-cyan-500";
+        case "rebalance": return "from-purple-500 to-pink-500";
+        default: return "from-gray-500 to-slate-500";
       }
     };
 
     return (
-      <div className="mt-4 p-4 bg-gradient-to-r from-slate-50 to-blue-50 rounded-xl border border-slate-200">
-        {/* 意图卡片头部：图标、标题和置信度 */}
-        <div className="flex items-center space-x-2 mb-3">
-          <div className={`w-8 h-8 bg-gradient-to-r ${getIntentColor(intent.intent)} rounded-lg flex items-center justify-center text-white`}>
+      <div className="bg-white/80 backdrop-blur-xl rounded-xl p-4 shadow-sm border border-slate-200/60">
+        <div className="flex items-center space-x-3 mb-3">
+          <div className={`w-10 h-10 bg-gradient-to-r ${getIntentColor(intent.intent)} rounded-lg flex items-center justify-center`}>
             {getIntentIcon(intent.intent)}
           </div>
-          <span className="font-semibold text-slate-800">Investment Intent Recognition</span>
-          {/* 置信度标签，根据置信度高低显示不同颜色 */}
-          <span className={`px-2 py-1 rounded-lg text-xs font-medium ${
-            intent.confidence > 0.8 ? 'bg-green-100 text-green-700' :
-            intent.confidence > 0.6 ? 'bg-yellow-100 text-yellow-700' :
-            'bg-red-100 text-red-700'
-          }`}>
-            Confidence: {(intent.confidence * 100).toFixed(0)}%
-          </span>
-        </div>
-        
-        {/* 显示解析出的实体信息 */}
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          {Object.entries(intent.entities).map(([key, value]) => {
-            if (value === undefined || value === null) return null;
-            return (
-              <div key={key} className="flex justify-between">
-                <span className="text-slate-600 capitalize">{key.replace('_', ' ')}:</span>
-                <span className="font-medium text-slate-800">{value}</span>
-              </div>
-            );
-          })}
-        </div>
-        
-        {/* 显示AI的推理过程 */}
-        {intent.reasoning && (
-          <div className="mt-3 p-2 bg-white/50 rounded-lg">
-            <span className="text-xs text-slate-600">{intent.reasoning}</span>
+          <div>
+            <h3 className="font-semibold text-slate-800 capitalize">{intent.intent}</h3>
+            <p className="text-sm text-slate-600">投资意图已识别</p>
           </div>
-        )}
+        </div>
+        
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm">
+            <span className="text-slate-600">金额:</span>
+            <span className="font-medium text-slate-800">{intent.entities.amount || '未指定'}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-slate-600">目标链:</span>
+            <span className="font-medium text-slate-800">{intent.entities.chain || '未指定'}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-slate-600">资产类型:</span>
+            <span className="font-medium text-slate-800">{intent.entities.asset_type || '未指定'}</span>
+          </div>
+        </div>
       </div>
     );
   };
 
-  return (
-    <div className="flex h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-      {/* 侧边栏：聊天历史列表 */}
-      <div
-        className={`${
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:translate-x-0 transition-transform duration-300 ease-in-out fixed lg:relative z-20 w-64 h-full bg-white/80 backdrop-blur-xl border-r border-slate-200/60 shadow-lg`}
-      >
-        {/* 侧边栏头部 */}
-        <div className="p-4 border-b border-slate-200/60">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <MessageCircle className="w-6 h-6 text-purple-600" />
-              <span className="text-lg font-semibold text-slate-800">
-                AI Assistant
-              </span>
-            </div>
-            {/* 移动端关闭按钮 */}
-            <button
-              onClick={() => setIsSidebarOpen(false)}
-              className="lg:hidden p-1 rounded-lg hover:bg-slate-100 transition-colors"
-            >
-              <X className="w-5 h-5 text-slate-600" />
-            </button>
+  // 如果用户未登录，显示登录提示
+  if (!isLoggedIn) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 flex items-center justify-center p-4">
+        <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-8 shadow-xl border border-slate-200/60 max-w-md w-full text-center">
+          <div className="w-16 h-16 bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <Bot className="w-8 h-8 text-white" />
           </div>
-        </div>
-
-        {/* 新建聊天按钮 */}
-        <div className="p-4">
-          <button 
-            onClick={startNewChat}
-            className="w-full flex items-center space-x-2 p-3 rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+          <h2 className="text-2xl font-bold text-slate-900 mb-4">
+            需要登录
+          </h2>
+          <p className="text-slate-600 mb-6">
+            请先登录您的账户以使用AI投资助手功能
+          </p>
+          <button
+            onClick={onLoginClick}
+            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-3 rounded-xl font-semibold hover:from-purple-700 hover:to-blue-700 transition-all duration-200 flex items-center justify-center space-x-2"
           >
-            <Plus className="w-4 h-4" />
-            <span>New Chat</span>
+            <LogIn className="w-5 h-5" />
+            <span>立即登录</span>
           </button>
         </div>
+      </div>
+    );
+  }
 
-        {/* 聊天历史列表 */}
-        <div className="p-4 space-y-2 flex-1 overflow-y-auto">
-          <div className="text-sm font-medium text-slate-600 mb-2">
-            Recent Chats
-          </div>
-          <div className="space-y-1">
-            {chatHistory.map((chat) => (
-              <div
-                key={chat.id}
-                onClick={() => loadChat(chat.id)}
-                className={`group p-3 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer relative ${
-                  currentChatId === chat.id ? 'bg-slate-100/50' : ''
-                }`}
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 flex">
+      {/* 侧边栏 - 聊天历史 */}
+      <div className={`fixed inset-y-0 left-0 z-40 w-80 bg-white/80 backdrop-blur-xl border-r border-slate-200/60 transform transition-transform duration-300 lg:translate-x-0 lg:static lg:inset-0 ${
+        isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+      }`}>
+        <div className="flex flex-col h-full">
+          {/* 侧边栏头部 */}
+          <div className="p-4 border-b border-slate-200/60">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-slate-800">聊天历史</h2>
+              <button
+                onClick={startNewChat}
+                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
               >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm text-slate-800 truncate pr-2">
-                      {chat.title}
-                    </div>
-                    <div className="text-xs text-slate-500">
-                      {formatRelativeTime(chat.lastUpdated)}
-                    </div>
+                <Plus className="w-5 h-5 text-slate-600" />
+              </button>
+            </div>
+          </div>
+
+          {/* 钱包信息区域 */}
+          {isLoggedIn && walletInfo && (
+            <div className="p-4 border-b border-slate-200/60 bg-gradient-to-r from-purple-50 to-blue-50">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center space-x-2">
+                  <Wallet className="w-5 h-5 text-purple-600" />
+                  <span className="text-sm font-semibold text-slate-800">钱包余额</span>
+                </div>
+                <button
+                  onClick={() => {
+                    console.log('🔄 侧边栏刷新按钮被点击');
+                    if (isLoggedIn) {
+                      const loadWalletInfo = async () => {
+                        try {
+                          console.log('🔄 开始刷新钱包信息...');
+                          setIsWalletLoading(true);
+                          const info = await walletService.getUserWallet();
+                          console.log('🔄 获取到钱包信息:', info);
+                          setWalletInfo(info);
+                        } catch (error) {
+                          console.error('❌ 刷新钱包信息失败:', error);
+                        } finally {
+                          setIsWalletLoading(false);
+                        }
+                      };
+                      loadWalletInfo();
+                    } else {
+                      console.log('❌ 用户未登录，无法刷新钱包信息');
+                    }
+                  }}
+                  disabled={isWalletLoading}
+                  className="p-1 hover:bg-purple-100 rounded transition-colors disabled:opacity-50"
+                  title="刷新余额"
+                >
+                  <RefreshCw className={`w-4 h-4 text-purple-600 ${isWalletLoading ? 'animate-spin' : ''}`} />
+                </button>
+              </div>
+              
+              {/* Ethereum余额 */}
+              <div className="mb-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-600">ETH</span>
+                  <div className="flex items-center space-x-2">
+                    <span className="font-medium text-slate-800">
+                      {(parseFloat(walletInfo.ethereumBalance) / Math.pow(10, 18)).toFixed(4)}
+                    </span>
+                    <button
+                      onClick={() => {
+                        console.log('🔄 ETH刷新按钮被点击');
+                        if (isLoggedIn) {
+                          const loadWalletInfo = async () => {
+                            try {
+                              console.log('🔄 开始刷新ETH余额...');
+                              setIsWalletLoading(true);
+                              const info = await walletService.getUserWallet();
+                              console.log('🔄 获取到钱包信息:', info);
+                              setWalletInfo(info);
+                            } catch (error) {
+                              console.error('❌ 刷新ETH余额失败:', error);
+                            } finally {
+                              setIsWalletLoading(false);
+                            }
+                          };
+                          loadWalletInfo();
+                        }
+                      }}
+                      disabled={isWalletLoading}
+                      className="p-1 hover:bg-blue-100 rounded transition-colors disabled:opacity-50"
+                      title="刷新ETH余额"
+                    >
+                      <RefreshCw className={`w-3 h-3 text-blue-600 ${isWalletLoading ? 'animate-spin' : ''}`} />
+                    </button>
                   </div>
-                  {/* 删除聊天按钮 */}
-                  <button
-                    onClick={(e) => deleteChat(chat.id, e)}
-                    className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-100 text-red-500 hover:text-red-600 transition-all duration-200"
-                    title="Delete chat"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
+                </div>
+                <div className="text-xs text-slate-500 truncate">
+                  {walletInfo.ethereumAddress.slice(0, 6)}...{walletInfo.ethereumAddress.slice(-4)}
                 </div>
               </div>
-            ))}
-            {/* 空状态显示 */}
-            {chatHistory.length === 0 && (
-              <div className="text-sm text-slate-400 text-center py-4">
-                No chat history
+              
+              {/* Solana余额 */}
+              <div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-600">SOL</span>
+                  <div className="flex items-center space-x-2">
+                    <span className="font-medium text-slate-800">
+                      {(parseFloat(walletInfo.solanaBalance) / Math.pow(10, 9)).toFixed(4)}
+                    </span>
+                    <button
+                      onClick={() => {
+                        console.log('🔄 SOL刷新按钮被点击');
+                        if (isLoggedIn) {
+                          const loadWalletInfo = async () => {
+                            try {
+                              console.log('🔄 开始刷新SOL余额...');
+                              setIsWalletLoading(true);
+                              const info = await walletService.getUserWallet();
+                              console.log('🔄 获取到钱包信息:', info);
+                              setWalletInfo(info);
+                            } catch (error) {
+                              console.error('❌ 刷新SOL余额失败:', error);
+                            } finally {
+                              setIsWalletLoading(false);
+                            }
+                          };
+                          loadWalletInfo();
+                        }
+                      }}
+                      disabled={isWalletLoading}
+                      className="p-1 hover:bg-green-100 rounded transition-colors disabled:opacity-50"
+                      title="刷新SOL余额"
+                    >
+                      <RefreshCw className={`w-3 h-3 text-green-600 ${isWalletLoading ? 'animate-spin' : ''}`} />
+                    </button>
+                  </div>
+                </div>
+                <div className="text-xs text-slate-500 truncate">
+                  {walletInfo.solanaAddress.slice(0, 6)}...{walletInfo.solanaAddress.slice(-4)}
+                </div>
               </div>
+            </div>
+          )}
+
+          {/* 聊天列表 */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-2">
+            {chatHistory.length === 0 ? (
+              <div className="text-center text-slate-500 py-8">
+                <MessageCircle className="w-12 h-12 mx-auto mb-4 text-slate-300" />
+                <p>暂无聊天记录</p>
+              </div>
+            ) : (
+              chatHistory.map((chat) => (
+                <div
+                  key={chat.id}
+                  onClick={() => loadChat(chat.id)}
+                  className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                    currentChatId === chat.id
+                      ? "bg-purple-50 border border-purple-200"
+                      : "hover:bg-slate-50"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium text-slate-800 truncate">
+                        {chat.title}
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        {formatRelativeTime(chat.lastUpdated)}
+                      </p>
+                    </div>
+                    <button
+                      onClick={(e) => deleteChat(chat.id, e)}
+                      className="p-1 hover:bg-red-100 rounded transition-colors opacity-0 group-hover:opacity-100"
+                    >
+                      <Trash2 className="w-4 h-4 text-red-500" />
+                    </button>
+                  </div>
+                </div>
+              ))
             )}
           </div>
         </div>
       </div>
-
-      {/* 移动端遮罩层 */}
-      {isSidebarOpen && (
-        <div
-          className="fixed inset-0 z-10 bg-black/20 backdrop-blur-sm lg:hidden"
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
 
       {/* 主聊天区域 */}
       <div className="flex-1 flex flex-col">
@@ -445,13 +686,6 @@ const ChatInterface: React.FC = () => {
                 <span className="text-lg font-semibold text-slate-800">
                   AI Investment Assistant
                 </span>
-              </div>
-            </div>
-
-            {/* 钱包连接组件 */}
-            <div className="flex items-center space-x-3">
-              <div className="flex items-center mr-48 px-4 py-2">
-                <DynamicWidget />
               </div>
             </div>
           </div>
@@ -485,113 +719,127 @@ const ChatInterface: React.FC = () => {
           {messages.map((message) => (
             <div
               key={message.id}
-              className={`flex ${
-                message.sender === "user" ? "justify-end" : "justify-start"
-              } animate-fadeIn`}
+              className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}
             >
               <div
-                className={`flex items-start space-x-3 max-w-md ${
+                className={`max-w-xs lg:max-w-md px-4 py-3 rounded-2xl ${
                   message.sender === "user"
-                    ? "flex-row-reverse space-x-reverse"
-                    : ""
+                    ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white"
+                    : "bg-white/80 backdrop-blur-sm border border-slate-200/60 text-slate-800"
                 }`}
               >
-                {/* 头像 */}
-                <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                    message.sender === "user"
-                      ? "bg-gradient-to-r from-purple-500 to-blue-500"
-                      : "bg-gradient-to-r from-slate-500 to-slate-600"
-                  }`}
-                >
-                  {message.sender === "user" ? (
-                    <User className="w-4 h-4 text-white" />
-                  ) : (
-                    <Bot className="w-4 h-4 text-white" />
-                  )}
-                </div>
-                {/* 消息气泡 */}
-                <div
-                  className={`px-4 py-3 rounded-2xl shadow-sm ${
-                    message.sender === "user"
-                      ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white"
-                      : "bg-white/80 backdrop-blur-sm text-slate-800 border border-slate-200/60"
-                  }`}
-                >
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
-                  {/* 时间戳 */}
-                  <div
-                    className={`text-xs mt-1 ${
-                      message.sender === "user"
-                        ? "text-purple-100"
-                        : "text-slate-500"
-                    }`}
-                  >
-                    {message.timestamp.toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                {renderMessageContent(message.content, message.sender)}
+                
+                {/* 转账状态显示 */}
+                {message.transferStatus && (
+                  <div className="mt-3 p-2 bg-slate-50 rounded-lg">
+                    <div className="flex items-center space-x-2 mb-2">
+                      {message.transferStatus.status === 'processing' && (
+                        <>
+                          <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
+                          <span className="text-xs font-medium text-blue-600">转账进行中...</span>
+                        </>
+                      )}
+                      {message.transferStatus.status === 'success' && (
+                        <>
+                          <CheckCircle className="w-4 h-4 text-green-600" />
+                          <span className="text-xs font-medium text-green-600">转账成功</span>
+                        </>
+                      )}
+                      {message.transferStatus.status === 'error' && (
+                        <>
+                          <XCircle className="w-4 h-4 text-red-600" />
+                          <span className="text-xs font-medium text-red-600">转账失败</span>
+                        </>
+                      )}
+                    </div>
+                    
+                    {message.transferStatus.status === 'processing' && (
+                      <div className="w-full bg-slate-200 rounded-full h-1">
+                        <div className="bg-blue-600 h-1 rounded-full animate-pulse" style={{ width: '60%' }}></div>
+                      </div>
+                    )}
+                    
+                    {message.transferStatus.status === 'success' && message.transferStatus.result && (
+                      <div className="text-xs text-slate-600">
+                        <div className="font-medium text-green-700 mb-1">✅ 转账执行成功</div>
+                        <div className="text-xs text-slate-500">
+                          命令已成功执行，请检查您的钱包余额。
+                        </div>
+                      </div>
+                    )}
+                    
+                    {message.transferStatus.status === 'error' && (
+                      <div className="text-xs text-red-600">
+                        <div className="font-medium mb-1">❌ 转账执行失败</div>
+                        <div className="text-xs">
+                          {message.transferStatus.error.includes('tx.partialSign is not a function') 
+                            ? 'CCIP脚本签名问题，请联系技术支持。'
+                            : message.transferStatus.error
+                          }
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
+                )}
+                
+                <p className={`text-xs mt-2 ${
+                  message.sender === "user" ? "text-purple-100" : "text-slate-500"
+                }`}>
+                  {message.timestamp.toLocaleTimeString()}
+                </p>
               </div>
             </div>
           ))}
-
-          {/* AI正在输入的提示 */}
+          
+          {/* AI正在输入指示器 */}
           {isTyping && (
-            <div className="flex justify-start animate-fadeIn">
-              <div className="flex items-start space-x-3 max-w-md">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-slate-500 to-slate-600 flex items-center justify-center flex-shrink-0">
-                  <Bot className="w-4 h-4 text-white" />
-                </div>
-                <div className="px-4 py-3 rounded-2xl bg-white/80 backdrop-blur-sm border border-slate-200/60">
-                  <div className="flex items-center space-x-2">
-                    <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
-                    <span className="text-sm text-slate-600">AI is thinking...</span>
-                  </div>
+            <div className="flex justify-start">
+              <div className="bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-2xl px-4 py-3">
+                <div className="flex items-center space-x-2">
+                  <Loader2 className="w-4 h-4 text-purple-600 animate-spin" />
+                  <span className="text-sm text-slate-600">AI正在思考...</span>
                 </div>
               </div>
             </div>
           )}
-          {/* 滚动锚点 */}
+          
           <div ref={messagesEndRef} />
         </div>
 
         {/* 输入区域 */}
         <div className="bg-white/80 backdrop-blur-xl border-t border-slate-200/60 p-4">
-          <div className="flex items-end space-x-3 max-w-4xl mx-auto">
-            <div className="flex-1 relative">
+          <div className="flex items-end space-x-3">
+            <div className="flex-1">
               <textarea
                 ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="Enter your investment needs, e.g.: I want to invest 30% of my funds into high-yield RWA on Solana..."
-                className="w-full px-4 py-3 pr-12 rounded-2xl border border-slate-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 resize-none transition-all duration-200 bg-white/50 backdrop-blur-sm"
+                placeholder="告诉我您的投资需求，例如：我想将30%的资金投资到Solana上的高收益RWA..."
+                className="w-full resize-none border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white/50 backdrop-blur-sm"
                 rows={1}
-                style={{
-                  minHeight: "44px",
-                  maxHeight: "120px",
-                  height: "auto",
-                }}
-                disabled={isTyping}
+                style={{ minHeight: "48px", maxHeight: "120px" }}
               />
             </div>
-            {/* 发送按钮 */}
             <button
               onClick={handleSend}
               disabled={!input.trim() || isTyping}
-              className="p-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-2xl hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
+              className="p-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
             >
-              {isTyping ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <Send className="w-5 h-5" />
-              )}
+              <Send className="w-5 h-5" />
             </button>
           </div>
         </div>
       </div>
+
+      {/* 移动端遮罩 */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/20 z-30 lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
     </div>
   );
 };

@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>转账状态测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>转账状态测试</h1>
+    
+    <div class="test-section">
+        <h3>1. 发送转账请求</h3>
+        <button onclick="sendTransferRequest()">发送转账请求</button>
+        <div id="transfer-log" class="log"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>2. 查询转账状态</h3>
+        <input type="text" id="transferId" placeholder="输入转账ID" style="width: 300px; padding: 5px;">
+        <button onclick="checkTransferStatus()">查询状态</button>
+        <div id="status-log" class="log"></div>
+    </div>
+    
+    <div class="test-section">
+        <h3>3. 轮询转账状态</h3>
+        <input type="text" id="pollTransferId" placeholder="输入转账ID" style="width: 300px; padding: 5px;">
+        <button onclick="startPolling()">开始轮询</button>
+        <button onclick="stopPolling()">停止轮询</button>
+        <div id="poll-log" class="log"></div>
+    </div>
+
+    <script>
+        let pollInterval = null;
+        
+        function log(elementId, message) {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            element.textContent += `[${timestamp}] ${message}\n`;
+            element.scrollTop = element.scrollHeight;
+        }
+        
+        async function sendTransferRequest() {
+            try {
+                log('transfer-log', '🚀 发送转账请求...');
+                
+                const response = await fetch('/.netlify/functions/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: 'transfer 0.005 BnMtoken from Solana to Ethereum',
+                        chatHistory: []
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                log('transfer-log', `✅ 收到响应: ${JSON.stringify(data, null, 2)}`);
+                
+                if (data.transferResult && data.transferResult.transferId) {
+                    log('transfer-log', `🔍 转账ID: ${data.transferResult.transferId}`);
+                    document.getElementById('transferId').value = data.transferResult.transferId;
+                    document.getElementById('pollTransferId').value = data.transferResult.transferId;
+                }
+                
+            } catch (error) {
+                log('transfer-log', `❌ 错误: ${error.message}`);
+            }
+        }
+        
+        async function checkTransferStatus() {
+            const transferId = document.getElementById('transferId').value;
+            if (!transferId) {
+                log('status-log', '❌ 请输入转账ID');
+                return;
+            }
+            
+            try {
+                log('status-log', `📡 查询转账状态: ${transferId}`);
+                
+                const response = await fetch(`/.netlify/functions/chat?transferId=${transferId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                log('status-log', `📊 状态结果: ${JSON.stringify(data, null, 2)}`);
+                
+            } catch (error) {
+                log('status-log', `❌ 错误: ${error.message}`);
+            }
+        }
+        
+        function startPolling() {
+            const transferId = document.getElementById('pollTransferId').value;
+            if (!transferId) {
+                log('poll-log', '❌ 请输入转账ID');
+                return;
+            }
+            
+            if (pollInterval) {
+                log('poll-log', '⚠️ 轮询已在进行中');
+                return;
+            }
+            
+            log('poll-log', `🚀 开始轮询转账状态: ${transferId}`);
+            let attempts = 0;
+            const maxAttempts = 12;
+            
+            pollInterval = setInterval(async () => {
+                try {
+                    attempts++;
+                    log('poll-log', `🔄 第${attempts}次轮询...`);
+                    
+                    const response = await fetch(`/.netlify/functions/chat?transferId=${transferId}`, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    log('poll-log', `📊 状态: ${data.status?.status || 'unknown'}`);
+                    
+                    if (data.status?.status === 'success' || data.status?.status === 'error') {
+                        log('poll-log', '✅ 转账完成，停止轮询');
+                        stopPolling();
+                    } else if (attempts >= maxAttempts) {
+                        log('poll-log', '⏰ 轮询超时');
+                        stopPolling();
+                    }
+                    
+                } catch (error) {
+                    log('poll-log', `❌ 轮询错误: ${error.message}`);
+                    if (attempts >= maxAttempts) {
+                        stopPolling();
+                    }
+                }
+            }, 5000);
+        }
+        
+        function stopPolling() {
+            if (pollInterval) {
+                clearInterval(pollInterval);
+                pollInterval = null;
+                log('poll-log', '🛑 轮询已停止');
+            }
+        }
+    </script>
+</body>
+</html> 

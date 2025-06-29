@@ -16,7 +16,7 @@
 [dev]
   command = "npm run dev:vite"
   port = 8888
-  functions=".netlify/functions"
+  functions="netlify/functions"
   targetPort = 5173
   framework = "#auto"
   autoLaunch = true

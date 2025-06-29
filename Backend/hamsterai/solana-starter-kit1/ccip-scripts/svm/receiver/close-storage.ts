@@ -4,7 +4,7 @@ import { createLogger, LogLevel } from "../../../ccip-lib/svm";
 import { getCCIPSVMConfig, ChainId } from "../../config";
 import { loadKeypair, loadReceiverProgram } from "../utils";
 import { KEYPAIR_PATHS } from "../utils/config-parser";
-
+import "dotenv/config";
 /**
  * Closes the CCIP Basic Receiver state and messages storage accounts.
  * Sends the rent lamports back to the owner (payer).

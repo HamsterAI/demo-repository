@@ -4,7 +4,7 @@ import { createLogger, LogLevel } from "../../../ccip-lib/svm";
 import { getCCIPSVMConfig, ChainId } from "../../config";
 import { loadKeypair, loadReceiverProgram } from "../utils";
 import { KEYPAIR_PATHS } from "../utils/config-parser";
-
+import "dotenv/config";
 /**
  * Initializes the CCIP Basic Receiver program on Solana.
  * Sets up the program state for CCIP message reception.

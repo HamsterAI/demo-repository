@@ -1,3 +1,31 @@
+solana链到evm链
+1.兑换wsol命令
+
+ yarn svm:token:warp --amount  1 or 2
+Example:  转换0.2个sol至wsol 
+Yarn svm:token:warp --amount  0.2
+
+2.transfer命令 
+这个直接实现代币转移功能，但是要注意代币转移前需要先使用代币委托命令
+
+yarn  svm:token-transfer - - --token-mint TokenAddressHere --token-amount 1000000  --receiver. 0xaddress 
+
+example: 
+yarn svm:token-transfer  -- --token-mint  3PjyGzj1jGVgHSKS4VR1Hr1memm63PmN8L9rtPDKwzZ6  --token-amount 5000000  --receiver  0x4aEeE376E7b9F0fAb9883382Bd5f9c8D22764ABb
+
+3.Token delegate  
+代币委托功能，将代币委托给CCIP，是转移命令执行前必须的前置命令
+
+yarn svm:token:delegate  --token 
+Example:
+yarn svm:token:delegate  --token  3PjyGzj1jGVgHSKS4VR1Hr1memm63PmN8L9rtPDKwzZ6
+
+4.token-check
+核对代币的委托情况
+Yarn svm:token:check
+example
+yarn svm:token:check --token 3PjyGzj1jGVgHSKS4VR1Hr1memm63PmN8L9rtPDKwzZ6
+
 <br/>
 <p align="center">
 <a href="https://chain.link" target="_blank">

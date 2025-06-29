@@ -17,7 +17,8 @@ import {
   RefreshCw,
   Settings,
   Eye,
-  Plus
+  Plus,
+  LogIn
 } from 'lucide-react';
 
 interface Strategy {
@@ -35,9 +36,15 @@ interface Strategy {
   lastUpdate: string;
 }
 
-const StrategyYieldPage: React.FC = () => {
+interface StrategyYieldPageProps {
+  isLoggedIn: boolean;
+  onLoginClick: () => void;
+}
+
+const StrategyYieldPage: React.FC<StrategyYieldPageProps> = ({ isLoggedIn, onLoginClick }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [selectedTimeframe, setSelectedTimeframe] = useState<'7d' | '30d' | '90d' | '1y'>('30d');
+  const [selectedStrategy, setSelectedStrategy] = useState<string>('conservative');
 
   useEffect(() => {
     setIsVisible(true);
@@ -148,6 +155,32 @@ const StrategyYieldPage: React.FC = () => {
       priority: 'high'
     }
   ];
+
+  // 如果用户未登录，显示登录提示
+  if (!isLoggedIn) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 flex items-center justify-center p-4">
+        <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-8 shadow-xl border border-slate-200/60 max-w-md w-full text-center">
+          <div className="w-16 h-16 bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <BarChart3 className="w-8 h-8 text-white" />
+          </div>
+          <h2 className="text-2xl font-bold text-slate-900 mb-4">
+            需要登录
+          </h2>
+          <p className="text-slate-600 mb-6">
+            请先登录您的账户以查看投资策略和收益分析
+          </p>
+          <button
+            onClick={onLoginClick}
+            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-3 rounded-xl font-semibold hover:from-purple-700 hover:to-blue-700 transition-all duration-200 flex items-center justify-center space-x-2"
+          >
+            <LogIn className="w-5 h-5" />
+            <span>立即登录</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50">

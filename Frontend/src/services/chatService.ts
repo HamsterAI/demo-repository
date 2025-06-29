@@ -2,8 +2,10 @@
 export interface ChatMessage {
   id: string;          // 消息唯一标识符
   content: string;     // 消息内容
-  sender: 'user' | 'ai';  // 发送者类型：用户或AI
+  sender: 'user' | 'assistant';  // 发送者类型：用户或AI
   timestamp: Date;     // 消息时间戳
+  transferId?: string; // 转账ID
+  transferStatus?: any; // 转账状态
 }
 
 // 投资意图识别结果接口定义
@@ -27,6 +29,7 @@ export interface InvestmentIntent {
 export interface ChatResponse {
   response: string;    // AI的文本回复
   intent?: InvestmentIntent;  // 可选的投资意图解析结果
+  transferResult?: any; // 跨链转账执行结果（如果有）
   usage?: {            // API使用统计（可选）
     prompt_tokens: number;      // 输入token数量
     completion_tokens: number;  // 输出token数量
@@ -204,3 +207,30 @@ class ChatService {
 
 // 导出聊天服务的单例实例
 export const chatService = new ChatService();
+
+// 查询转账状态
+export const checkTransferStatus = async (transferId: string): Promise<any> => {
+  try {
+    const baseUrl = process.env.NODE_ENV === 'development' 
+      ? '/.netlify/functions'   // 开发环境：本地Netlify函数
+      : '/.netlify/functions';  // 生产环境：部署的Netlify函数
+    
+    const response = await fetch(`${baseUrl}/chat?transferId=${transferId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('📡 转账状态查询结果:', data);
+    return data.status;
+  } catch (error) {
+    console.error('查询转账状态失败:', error);
+    throw error;
+  }
+};

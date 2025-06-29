@@ -1,4 +1,294 @@
 import { Handler } from '@netlify/functions';
+import "dotenv/config";
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+
+const execAsync = promisify(exec);
+
+// 简单的转账状态存储（在生产环境中应该使用数据库）
+const transferStatus = new Map<string, any>();
+
+// 生成转账任务ID
+function generateTransferId(): string {
+  return `transfer_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
+// 从.env文件读取EVM私钥并解析地址
+function getEVMAddressFromEnv(): string {
+  try {
+    // 使用绝对路径
+    const solanaEnvPath = '/Users/sun/Solana/solana_Aimax/HamsterAI/demo-repository/Backend/hamsterai/solana-starter-kit1/.env';
+    console.log('尝试读取solana-starter-kit1.env文件:', solanaEnvPath);
+    console.log('当前工作目录:', process.cwd());
+    
+    const fs = require('fs');
+    const fileExists = fs.existsSync(solanaEnvPath);
+    console.log('文件是否存在:', fileExists);
+    
+    if (fileExists) {
+      const envContent = readFileSync(solanaEnvPath, 'utf8');
+      console.log('文件内容长度:', envContent.length);
+      console.log('文件内容前200字符:', envContent.substring(0, 200));
+      
+      const lines = envContent.split('\n');
+      console.log('文件行数:', lines.length);
+      
+      let foundEVMKey = false;
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        console.log(`第${i+1}行:`, line);
+        if (line.startsWith('EVM_PRIVATE_KEY=')) {
+          foundEVMKey = true;
+          const privateKey = line.split('=')[1];
+          console.log('找到EVM私钥:', privateKey.substring(0, 10) + '...');
+          
+          // 使用ethers解析私钥获取地址
+          const { ethers } = require('ethers');
+          const wallet = new ethers.Wallet(privateKey);
+          const address = wallet.address;
+          console.log('解析出的EVM地址:', address);
+          return address;
+        }
+      }
+      
+      if (!foundEVMKey) {
+        console.log('文件中没有找到EVM_PRIVATE_KEY行');
+      }
+    }
+    
+    // 如果solana-starter-kit1/.env没有，尝试从Backend/.env读取
+    const backendEnvPath = '/Users/sun/Solana/solana_Aimax/HamsterAI/demo-repository/Backend/.env';
+    console.log('尝试读取Backend.env文件:', backendEnvPath);
+    
+    if (fs.existsSync(backendEnvPath)) {
+      const envContent = readFileSync(backendEnvPath, 'utf8');
+      const lines = envContent.split('\n');
+      
+      for (const line of lines) {
+        if (line.startsWith('EVM_PRIVATE_KEY=')) {
+          const privateKey = line.split('=')[1];
+          console.log('找到EVM私钥:', privateKey.substring(0, 10) + '...');
+          
+          // 使用ethers解析私钥获取地址
+          const { ethers } = require('ethers');
+          const wallet = new ethers.Wallet(privateKey);
+          const address = wallet.address;
+          console.log('解析出的EVM地址:', address);
+          return address;
+        }
+      }
+    }
+    
+    throw new Error('未找到EVM_PRIVATE_KEY环境变量');
+  } catch (error) {
+    console.error('获取EVM地址失败:', error);
+    throw error;
+  }
+}
+
+// 构建转账命令
+function buildTransferCommand(intent: any): string {
+  console.log('开始构建转账命令，原始intent:', JSON.stringify(intent, null, 2));
+  
+  const entities = intent.entities;
+  console.log('解析的entities:', JSON.stringify(entities, null, 2));
+  
+  // 映射参数
+  const tokenMint = '3PjyGzj1jGVgHSKS4VR1Hr1memm63PmN8L9rtPDKwzZ6'; // BnM token mint
+  
+  // 检查是否有amount字段
+  let amount = entities.amount;
+  if (!amount) {
+    console.log('entities中没有amount字段');
+    throw new Error('请指定转账数量，例如：0.005 BnMtoken');
+  }
+  
+  const tokenAmount = Math.floor(amount * 1000000000).toString(); // 转换为最小单位（9位小数）
+  
+  // 确定链方向
+  const fromChain = entities.source_chain?.toLowerCase() || entities.platform?.toLowerCase() || entities.from_chain?.toLowerCase() || 'solana';
+  const toChain = entities.chain?.toLowerCase() || 'ethereum';
+  
+  // 获取EVM地址作为receiver
+  const receiverAddress = getEVMAddressFromEnv();
+  
+  console.log('从AI意图解析的参数:', {
+    tokenMint,
+    tokenAmount,
+    fromChain,
+    toChain,
+    receiverAddress
+  });
+  
+  // 构建命令
+  let command = '';
+  if (fromChain === 'solana' && toChain === 'ethereum') {
+    // Solana -> Ethereum
+    command = `cd /Users/sun/Solana/solana_Aimax/HamsterAI/demo-repository/Backend/hamsterai/solana-starter-kit1 && yarn svm:token-transfer -- --token-mint ${tokenMint} --token-amount ${tokenAmount} --receiver ${receiverAddress}`;
+  } else if (fromChain === 'ethereum' && toChain === 'solana') {
+    // Ethereum -> Solana
+    command = `cd /Users/sun/Solana/solana_Aimax/HamsterAI/demo-repository/Backend/hamsterai/solana-starter-kit1 && yarn evm:token-transfer -- --token-address ${tokenMint} --token-amount ${tokenAmount} --receiver ${receiverAddress}`;
+  } else {
+    console.log('不支持的跨链方向:', { fromChain, toChain });
+    throw new Error(`不支持的跨链方向: ${fromChain} -> ${toChain}`);
+  }
+  
+  console.log('🚀 构建的跨链转账命令:', command);
+  return command;
+}
+
+// 执行命令
+async function executeCommand(command: string): Promise<any> {
+  console.log('执行命令:', command);
+  
+  const { stdout, stderr } = await execAsync(command);
+  
+  if (stderr) {
+    console.error('命令执行stderr:', stderr);
+  }
+  
+  console.log('✅ 命令执行成功:', stdout);
+  
+  return {
+    success: true,
+    command: command,
+    output: stdout,
+    stderr: stderr
+  };
+}
+
+// 执行跨链转账的函数
+async function executeCrossChainTransfer(intent: any, message: string) {
+  try {
+    console.log('开始执行跨链转账，原始intent:', JSON.stringify(intent, null, 2));
+    
+    const entities = intent.entities;
+    console.log('解析的entities:', JSON.stringify(entities, null, 2));
+    
+    // 映射参数
+    const tokenMint = '3PjyGzj1jGVgHSKS4VR1Hr1memm63PmN8L9rtPDKwzZ6'; // BnM token mint
+    
+    // 检查是否有amount字段，如果没有则从用户输入中提取
+    let amount = entities.amount;
+    if (!amount) {
+      console.log('entities中没有amount字段，尝试从用户输入中提取...');
+      console.log('用户原始输入:', message);
+      
+      // 从用户输入中提取数量
+      const amountMatch = message.match(/(\d+(?:\.\d+)?)\s*(?:bnm|burnmint|token|BnMtoken)/i);
+      if (amountMatch) {
+        amount = parseFloat(amountMatch[1]);
+        console.log('从用户输入中提取到amount:', amount);
+      } else {
+        // 如果没有找到数量，返回错误提示用户
+        console.log('未找到amount，无法执行转账');
+        throw new Error('请指定转账数量，例如：0.005 BnMtoken');
+      }
+    }
+    
+    const tokenAmount = Math.floor(amount * 1000000000).toString(); // 转换为最小单位（9位小数）
+    
+    // 确定链方向
+    const fromChain = entities.source_chain?.toLowerCase() || entities.platform?.toLowerCase() || entities.from_chain?.toLowerCase() || 'solana';
+    const toChain = entities.chain?.toLowerCase() || 'ethereum';
+    
+    // 获取EVM地址作为receiver
+    const receiverAddress = getEVMAddressFromEnv();
+    
+    console.log('从AI意图解析的参数:', {
+      tokenMint,
+      tokenAmount,
+      fromChain,
+      toChain,
+      receiverAddress
+    });
+    
+    // 构建命令
+    let command = '';
+    if (fromChain === 'solana' && toChain === 'ethereum') {
+      // Solana -> Ethereum
+      command = `cd /Users/sun/Solana/solana_Aimax/HamsterAI/demo-repository/Backend/hamsterai/solana-starter-kit1 && yarn svm:token-transfer -- --token-mint ${tokenMint} --token-amount ${tokenAmount} --receiver ${receiverAddress}`;
+    } else if (fromChain === 'ethereum' && toChain === 'solana') {
+      // Ethereum -> Solana
+      command = `cd /Users/sun/Solana/solana_Aimax/HamsterAI/demo-repository/Backend/hamsterai/solana-starter-kit1 && yarn evm:token-transfer -- --token-address ${tokenMint} --token-amount ${tokenAmount} --receiver ${receiverAddress}`;
+    } else {
+      console.log('不支持的跨链方向:', { fromChain, toChain });
+      throw new Error(`不支持的跨链方向: ${fromChain} -> ${toChain}`);
+    }
+    
+    console.log('🚀 执行跨链转账命令:', command);
+    
+    // 执行命令
+    const { stdout, stderr } = await execAsync(command);
+    
+    if (stderr) {
+      console.error('命令执行stderr:', stderr);
+    }
+    
+    console.log('✅ 跨链转账成功:', stdout);
+    
+    return {
+      success: true,
+      command: command,
+      output: stdout,
+      params: { tokenMint, tokenAmount, fromChain, toChain, receiverAddress }
+    };
+    
+  } catch (error) {
+    console.error('执行跨链转账失败:', error);
+    throw error;
+  }
+}
+
+// 异步执行跨链转账
+async function executeCrossChainTransferAsync(intent: any, message: string, transferId: string): Promise<any> {
+  try {
+    console.log('开始异步执行跨链转账:', intent);
+    
+    // 更新状态为进行中
+    transferStatus.set(transferId, {
+      status: 'processing',
+      message: '正在执行跨链转账...',
+      startTime: new Date().toISOString(),
+      intent: intent
+    });
+    
+    // 构建命令
+    const command = buildTransferCommand(intent);
+    console.log('构建的命令:', command);
+    
+    // 执行命令
+    const result = await executeCommand(command);
+    console.log('异步转账执行结果:', result);
+    
+    // 更新状态为成功
+    const successResult = {
+      status: 'success',
+      result: result,
+      message: '跨链转账已完成！',
+      endTime: new Date().toISOString()
+    };
+    
+    transferStatus.set(transferId, successResult);
+    
+    return successResult;
+  } catch (error) {
+    console.error('异步转账执行失败:', error);
+    
+    // 更新状态为失败
+    const errorResult = {
+      status: 'error',
+      error: error instanceof Error ? error.message : '未知错误',
+      endTime: new Date().toISOString()
+    };
+    
+    transferStatus.set(transferId, errorResult);
+    
+    return errorResult;
+  }
+}
 
 // 投资意图识别系统提示词
 // 这个提示词指导AI如何解析用户的投资指令并返回结构化的JSON格式结果
@@ -13,6 +303,7 @@ Please strictly return results in the following JSON format:
     "asset_type": "asset type",
     "platform": "platform name (if specified)",
     "chain": "blockchain network (if specified)",
+    "source_chain": "source blockchain for transfers (if specified)",
     "risk_level": "risk level",
     "duration": "investment duration (if specified)",
     "apy_requirement": "APY requirement (if specified)"
@@ -24,7 +315,8 @@ Please strictly return results in the following JSON format:
 Supported investment intent types:
 - "invest": Investment instruction
 - "rebalance": Rebalance investment portfolio
-- "withdraw": Withdraw funds
+- "withdraw": Withdraw funds or cross-chain transfer
+- "transfer": Cross-chain transfer
 - "query": Query investment status
 - "strategy": Investment strategy advice
 - "general": General consultation
@@ -35,6 +327,7 @@ Supported asset types:
 - "Staking": Staking
 - "Liquidity": Liquidity Mining
 - "Mixed": Mixed Investment
+- "Token": Generic token
 
 Supported blockchain networks:
 - "Ethereum": Ethereum
@@ -42,24 +335,40 @@ Supported blockchain networks:
 - "Polygon": Polygon
 - "Cross-chain": Cross-chain
 
-Risk levels:
-- "Low": Low risk
-- "Medium": Medium risk
-- "High": High risk
+IMPORTANT: For cross-chain transfers or withdrawals, ALWAYS extract the amount from user input, even if it's mentioned in passing. For example:
+- "transfer 0.005 BnMtoken" -> amount: 0.005
+- "send 1.5 tokens" -> amount: 1.5
+- "move 0.1 BnM" -> amount: 0.1
+
+If the user doesn't specify an amount, set amount to null and include a note in reasoning that amount is missing.
 
 Example:
-User input: "I want to invest 30% of my funds into high-yield RWA on Solana"
+User input: "I want to transfer 0.005 BnMtoken from Solana to Ethereum"
 Return:
 {
-  "intent": "invest",
+  "intent": "withdraw",
   "entities": {
-    "percentage": 30,
-    "asset_type": "RWA",
-    "chain": "Solana",
-    "risk_level": "Medium"
+    "amount": 0.005,
+    "asset_type": "Token",
+    "source_chain": "Solana",
+    "chain": "Ethereum"
+  },
+  "confidence": 0.95,
+  "reasoning": "User specified transferring a specific amount of BnMtoken from Solana to Ethereum chain, indicating a withdrawal intent"
+}
+
+User input: "I want to transfer BnMtoken from Solana to Ethereum"
+Return:
+{
+  "intent": "withdraw",
+  "entities": {
+    "amount": null,
+    "asset_type": "Token",
+    "source_chain": "Solana",
+    "chain": "Ethereum"
   },
   "confidence": 0.9,
-  "reasoning": "User clearly expressed investment intent, specified 30% percentage, Solana chain and RWA asset type"
+  "reasoning": "User mentioned transferring BnMtoken from Solana to Ethereum chain, indicating a withdrawal intent, but did not specify the amount"
 }
 
 Please only return JSON format results, do not include other text explanations.`;
@@ -86,13 +395,40 @@ export const handler: Handler = async (event) => {
     throw new Error('DeepSeek API key is missing in environment variables');
   }
   else console.log('DeepSeek API key is set',{apiKey});
-  // 只允许POST方法
-  if (event.httpMethod !== 'POST') {
+  // 只允许POST和GET方法
+  if (event.httpMethod !== 'POST' && event.httpMethod !== 'GET') {
     return {
       statusCode: 405,
       headers,
       body: JSON.stringify({ error: 'Method not allowed' }),
     };
+  }
+
+  // 处理GET请求 - 查询转账状态
+  if (event.httpMethod === 'GET') {
+    const transferId = event.queryStringParameters?.transferId;
+    if (transferId) {
+      const status = transferStatus.get(transferId);
+      if (status) {
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ status }),
+        };
+      } else {
+        return {
+          statusCode: 404,
+          headers,
+          body: JSON.stringify({ error: 'Transfer not found' }),
+        };
+      }
+    } else {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: 'transferId parameter is required' }),
+      };
+    }
   }
 
   try {
@@ -161,20 +497,107 @@ export const handler: Handler = async (event) => {
     // 尝试解析AI返回的JSON格式投资意图
     let parsedIntent = null;
     try {
-      parsedIntent = JSON.parse(aiResponse);
+      // 清理AI响应，移除可能的代码块包装
+      let cleanResponse = aiResponse.trim();
+      
+      // 如果响应被包装在代码块中，提取JSON部分
+      if (cleanResponse.startsWith('```json')) {
+        cleanResponse = cleanResponse.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      } else if (cleanResponse.startsWith('```')) {
+        cleanResponse = cleanResponse.replace(/^```\s*/, '').replace(/\s*```$/, '');
+      }
+      
+      console.log('清理后的响应:', cleanResponse);
+      parsedIntent = JSON.parse(cleanResponse);
+      console.log('✅ JSON解析成功:', parsedIntent);
     } catch (e) {
       // 如果解析失败，记录警告但不中断流程
-      console.warn('Failed to parse AI response as JSON:', aiResponse);
+      console.warn('❌ Failed to parse AI response as JSON:', aiResponse);
+      console.warn('解析错误:', e);
     }
 
-    // 返回成功响应，包含AI回复、解析的意图和使用统计
+    // 检查是否是跨链转账意图，如果是则执行命令
+    let transferResult = null;
+    let userFriendlyResponse = aiResponse; // 默认使用AI原始回复
+    console.log('检查意图类型:', parsedIntent?.intent);
+    console.log('parsedIntent存在:', !!parsedIntent);
+    console.log('意图匹配结果:', parsedIntent && (parsedIntent.intent === 'withdraw' || parsedIntent.intent === 'transfer'));
+    
+    if (parsedIntent && (parsedIntent.intent === 'withdraw' || parsedIntent.intent === 'transfer')) {
+      try {
+        console.log('检测到跨链转账意图:', parsedIntent);
+        
+        // 构建用户友好的转账详情
+        const entities = parsedIntent.entities;
+        const amount = entities.amount || '未指定';
+        const fromChain = entities.source_chain?.toLowerCase() || entities.platform?.toLowerCase() || entities.from_chain?.toLowerCase() || 'Solana';
+        const toChain = entities.chain?.toLowerCase() || 'Ethereum';
+        const assetType = entities.asset_type || 'BnM Token';
+        
+        // 获取EVM地址作为receiver
+        const receiverAddress = getEVMAddressFromEnv();
+        
+        // 构建用户友好的回复
+        userFriendlyResponse = `🚀 **跨链转账请求已确认**
+
+📋 **转账详情：**
+• **代币类型**: ${assetType}
+• **转账数量**: ${amount} ${assetType}
+• **源链**: ${fromChain.charAt(0).toUpperCase() + fromChain.slice(1)}
+• **目标链**: ${toChain.charAt(0).toUpperCase() + toChain.slice(1)}
+• **接收地址**: ${receiverAddress.slice(0, 6)}...${receiverAddress.slice(-4)}
+
+⏳ **状态**: 正在准备转账，请稍候...
+
+_系统将自动执行转账操作，您可以通过下方的进度指示器查看实时状态。_`;
+        
+        // 先返回正在转移的消息，然后异步执行转账
+        const transferId = generateTransferId();
+        transferResult = {
+          status: 'processing',
+          message: '正在执行跨链转账，请稍候...',
+          transferId: transferId,
+          intent: parsedIntent
+        };
+        
+        // 存储初始状态
+        transferStatus.set(transferId, transferResult);
+        
+        // 异步执行转账（不阻塞响应）
+        executeCrossChainTransferAsync(parsedIntent, message, transferId).then((result: any) => {
+          console.log('异步转账完成:', result);
+          // 这里可以发送WebSocket消息或存储结果供前端轮询
+        }).catch((error: any) => {
+          console.error('异步转账失败:', error);
+        });
+        
+      } catch (transferError) {
+        console.error('跨链转账执行失败:', transferError);
+        transferResult = { 
+          status: 'error',
+          error: transferError instanceof Error ? transferError.message : '未知错误' 
+        };
+        
+        // 如果转账准备失败，返回错误信息
+        userFriendlyResponse = `❌ **转账准备失败**
+
+${transferError instanceof Error ? transferError.message : '未知错误'}
+
+请检查您的转账请求格式是否正确，或稍后重试。`;
+      }
+    } else {
+      console.log('不是跨链转账意图或parsedIntent为空');
+    }
+
+    // 返回成功响应，包含美化后的AI回复、解析的意图和使用统计
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify({
-        response: aiResponse,      // AI的原始回复
-        intent: parsedIntent,      // 解析出的投资意图（如果成功）
-        usage: data.usage,         // API使用统计信息
+        response: userFriendlyResponse,  // 使用美化后的回复
+        intent: parsedIntent,            // 解析出的投资意图（如果成功）
+        transferResult: transferResult,  // 跨链转账执行结果（如果有）
+        usage: data.usage,               // API使用统计信息
       }),
     };
   } catch (error) {
