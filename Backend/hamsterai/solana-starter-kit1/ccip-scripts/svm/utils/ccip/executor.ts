@@ -25,8 +25,8 @@ import {
   printUsage,
   toOnChainAmount,
   messageDataToBuffer,
-} from "../../utils";
-import { createCCIPClient } from "../../utils/client-factory";
+} from "..";
+import { createCCIPClient } from "../client-factory";
 import { validateSolBalance, validateTokenBalances } from "./validation";
 import { ExecutorOptions, CCIPOptions } from "./config-types";
 
