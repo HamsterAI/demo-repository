@@ -228,7 +228,14 @@ export const checkTransferStatus = async (transferId: string): Promise<any> => {
 
     const data = await response.json();
     console.log('📡 转账状态查询结果:', data);
-    return data.status;
+    
+    // 确保返回正确的状态数据
+    if (data.status) {
+      return data.status;
+    } else {
+      console.error('❌ 转账状态数据格式错误:', data);
+      throw new Error('Invalid transfer status format');
+    }
   } catch (error) {
     console.error('查询转账状态失败:', error);
     throw error;

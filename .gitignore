@@ -1,3 +1,9 @@
 # Local Netlify folder
 .netlify
 node_modules
+test-async-transfer.js
+test——teansfer-status.html
+test-wallet.js
+convert-keys.js
+export-solana-keys.js
+export-solana-keys.mjs

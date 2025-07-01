@@ -102,7 +102,7 @@ function buildTransferCommand(intent: any): string {
   let amount = entities.amount;
   if (!amount) {
     console.log('entities中没有amount字段');
-    throw new Error('请指定转账数量，例如：0.005 BnMtoken');
+    throw new Error('Please specify transfer amount, e.g.: 0.005 BnMtoken');
   }
   
   const tokenAmount = Math.floor(amount * 1000000000).toString(); // 转换为最小单位（9位小数）
@@ -132,24 +132,24 @@ function buildTransferCommand(intent: any): string {
     command = `cd /Users/sun/Solana/solana_Aimax/HamsterAI/demo-repository/Backend/hamsterai/solana-starter-kit1 && yarn evm:token-transfer -- --token-address ${tokenMint} --token-amount ${tokenAmount} --receiver ${receiverAddress}`;
   } else {
     console.log('不支持的跨链方向:', { fromChain, toChain });
-    throw new Error(`不支持的跨链方向: ${fromChain} -> ${toChain}`);
+    throw new Error(`Unsupported cross-chain direction: ${fromChain} -> ${toChain}`);
   }
   
-  console.log('🚀 构建的跨链转账命令:', command);
+  console.log('🚀 Built cross-chain transfer command:', command);
   return command;
 }
 
 // 执行命令
 async function executeCommand(command: string): Promise<any> {
-  console.log('执行命令:', command);
+  console.log('Executing command:', command);
   
   const { stdout, stderr } = await execAsync(command);
   
   if (stderr) {
-    console.error('命令执行stderr:', stderr);
+    console.error('Command execution stderr:', stderr);
   }
   
-  console.log('✅ 命令执行成功:', stdout);
+  console.log('✅ Command executed successfully:', stdout);
   
   return {
     success: true,
@@ -162,10 +162,10 @@ async function executeCommand(command: string): Promise<any> {
 // 执行跨链转账的函数
 async function executeCrossChainTransfer(intent: any, message: string) {
   try {
-    console.log('开始执行跨链转账，原始intent:', JSON.stringify(intent, null, 2));
+    console.log('Starting cross-chain transfer execution, original intent:', JSON.stringify(intent, null, 2));
     
     const entities = intent.entities;
-    console.log('解析的entities:', JSON.stringify(entities, null, 2));
+    console.log('Parsed entities:', JSON.stringify(entities, null, 2));
     
     // 映射参数
     const tokenMint = '3PjyGzj1jGVgHSKS4VR1Hr1memm63PmN8L9rtPDKwzZ6'; // BnM token mint
@@ -173,18 +173,18 @@ async function executeCrossChainTransfer(intent: any, message: string) {
     // 检查是否有amount字段，如果没有则从用户输入中提取
     let amount = entities.amount;
     if (!amount) {
-      console.log('entities中没有amount字段，尝试从用户输入中提取...');
-      console.log('用户原始输入:', message);
+      console.log('No amount field in entities, trying to extract from user input...');
+      console.log('User original input:', message);
       
       // 从用户输入中提取数量
       const amountMatch = message.match(/(\d+(?:\.\d+)?)\s*(?:bnm|burnmint|token|BnMtoken)/i);
       if (amountMatch) {
         amount = parseFloat(amountMatch[1]);
-        console.log('从用户输入中提取到amount:', amount);
+        console.log('Extracted amount from user input:', amount);
       } else {
         // 如果没有找到数量，返回错误提示用户
-        console.log('未找到amount，无法执行转账');
-        throw new Error('请指定转账数量，例如：0.005 BnMtoken');
+        console.log('Amount not found, cannot execute transfer');
+        throw new Error('Please specify transfer amount, e.g.: 0.005 BnMtoken');
       }
     }
     
@@ -197,7 +197,7 @@ async function executeCrossChainTransfer(intent: any, message: string) {
     // 获取EVM地址作为receiver
     const receiverAddress = getEVMAddressFromEnv();
     
-    console.log('从AI意图解析的参数:', {
+    console.log('Parameters parsed from AI intent:', {
       tokenMint,
       tokenAmount,
       fromChain,
@@ -214,20 +214,20 @@ async function executeCrossChainTransfer(intent: any, message: string) {
       // Ethereum -> Solana
       command = `cd /Users/sun/Solana/solana_Aimax/HamsterAI/demo-repository/Backend/hamsterai/solana-starter-kit1 && yarn evm:token-transfer -- --token-address ${tokenMint} --token-amount ${tokenAmount} --receiver ${receiverAddress}`;
     } else {
-      console.log('不支持的跨链方向:', { fromChain, toChain });
-      throw new Error(`不支持的跨链方向: ${fromChain} -> ${toChain}`);
+      console.log('Unsupported cross-chain direction:', { fromChain, toChain });
+      throw new Error(`Unsupported cross-chain direction: ${fromChain} -> ${toChain}`);
     }
     
-    console.log('🚀 执行跨链转账命令:', command);
+    console.log('🚀 Executing cross-chain transfer command:', command);
     
     // 执行命令
     const { stdout, stderr } = await execAsync(command);
     
     if (stderr) {
-      console.error('命令执行stderr:', stderr);
+      console.error('Command execution stderr:', stderr);
     }
     
-    console.log('✅ 跨链转账成功:', stdout);
+    console.log('✅ Cross-chain transfer succeeded:', stdout);
     
     return {
       success: true,
@@ -237,7 +237,7 @@ async function executeCrossChainTransfer(intent: any, message: string) {
     };
     
   } catch (error) {
-    console.error('执行跨链转账失败:', error);
+    console.error('Cross-chain transfer execution failed:', error);
     throw error;
   }
 }
@@ -245,29 +245,49 @@ async function executeCrossChainTransfer(intent: any, message: string) {
 // 异步执行跨链转账
 async function executeCrossChainTransferAsync(intent: any, message: string, transferId: string): Promise<any> {
   try {
-    console.log('开始异步执行跨链转账:', intent);
+    console.log('Starting async cross-chain transfer execution:', intent);
     
     // 更新状态为进行中
     transferStatus.set(transferId, {
       status: 'processing',
-      message: '正在执行跨链转账...',
+      message: 'Executing cross-chain transfer...',
       startTime: new Date().toISOString(),
       intent: intent
     });
     
     // 构建命令
     const command = buildTransferCommand(intent);
-    console.log('构建的命令:', command);
+    console.log('Built command:', command);
     
     // 执行命令
     const result = await executeCommand(command);
-    console.log('异步转账执行结果:', result);
+    console.log('Async transfer execution result:', result);
+    
+    // 从输出中提取Message ID
+    let messageId = null;
+    let explorerUrl = null;
+    if (result.output) {
+      console.log('Extracting Message ID from output...');
+      // 尝试多种格式匹配Message ID
+      const messageIdMatch = result.output.match(/Message ID: (0x[a-fA-F0-9]+)/);
+      if (messageIdMatch) {
+        messageId = messageIdMatch[1];
+        explorerUrl = `https://ccip.chain.link/msg/${messageId}`;
+        console.log('✅ Message ID extracted:', messageId);
+        console.log('✅ Explorer URL:', explorerUrl);
+      } else {
+        console.log('❌ Message ID not found in output');
+        console.log('Output preview:', result.output.substring(0, 500));
+      }
+    }
     
     // 更新状态为成功
     const successResult = {
       status: 'success',
       result: result,
-      message: '跨链转账已完成！',
+      message: 'Cross-chain transfer completed!',
+      messageId: messageId,
+      explorerUrl: explorerUrl,
       endTime: new Date().toISOString()
     };
     
@@ -275,12 +295,12 @@ async function executeCrossChainTransferAsync(intent: any, message: string, tran
     
     return successResult;
   } catch (error) {
-    console.error('异步转账执行失败:', error);
+    console.error('Async transfer execution failed:', error);
     
     // 更新状态为失败
     const errorResult = {
       status: 'error',
-      error: error instanceof Error ? error.message : '未知错误',
+      error: error instanceof Error ? error.message : 'Unknown error',
       endTime: new Date().toISOString()
     };
     
@@ -519,17 +539,17 @@ export const handler: Handler = async (event) => {
     // 检查是否是跨链转账意图，如果是则执行命令
     let transferResult = null;
     let userFriendlyResponse = aiResponse; // 默认使用AI原始回复
-    console.log('检查意图类型:', parsedIntent?.intent);
-    console.log('parsedIntent存在:', !!parsedIntent);
-    console.log('意图匹配结果:', parsedIntent && (parsedIntent.intent === 'withdraw' || parsedIntent.intent === 'transfer'));
+    console.log('Checking intent type:', parsedIntent?.intent);
+    console.log('parsedIntent exists:', !!parsedIntent);
+    console.log('Intent match result:', parsedIntent && (parsedIntent.intent === 'withdraw' || parsedIntent.intent === 'transfer'));
     
     if (parsedIntent && (parsedIntent.intent === 'withdraw' || parsedIntent.intent === 'transfer')) {
       try {
-        console.log('检测到跨链转账意图:', parsedIntent);
+        console.log('Detected cross-chain transfer intent:', parsedIntent);
         
         // 构建用户友好的转账详情
         const entities = parsedIntent.entities;
-        const amount = entities.amount || '未指定';
+        const amount = entities.amount || 'Not specified';
         const fromChain = entities.source_chain?.toLowerCase() || entities.platform?.toLowerCase() || entities.from_chain?.toLowerCase() || 'Solana';
         const toChain = entities.chain?.toLowerCase() || 'Ethereum';
         const assetType = entities.asset_type || 'BnM Token';
@@ -538,26 +558,27 @@ export const handler: Handler = async (event) => {
         const receiverAddress = getEVMAddressFromEnv();
         
         // 构建用户友好的回复
-        userFriendlyResponse = `🚀 **跨链转账请求已确认**
+        userFriendlyResponse = `🚀 **Cross-chain Transfer Request Confirmed**
 
-📋 **转账详情：**
-• **代币类型**: ${assetType}
-• **转账数量**: ${amount} ${assetType}
-• **源链**: ${fromChain.charAt(0).toUpperCase() + fromChain.slice(1)}
-• **目标链**: ${toChain.charAt(0).toUpperCase() + toChain.slice(1)}
-• **接收地址**: ${receiverAddress.slice(0, 6)}...${receiverAddress.slice(-4)}
+📋 **Transfer Details:**
+• **Token Type**: ${assetType}
+• **Transfer Amount**: ${amount} ${assetType}
+• **Source Chain**: ${fromChain.charAt(0).toUpperCase() + fromChain.slice(1)}
+• **Target Chain**: ${toChain.charAt(0).toUpperCase() + toChain.slice(1)}
+• **Receiver Address**: ${receiverAddress.slice(0, 6)}...${receiverAddress.slice(-4)}
 
-⏳ **状态**: 正在准备转账，请稍候...
+⏳ **Status**: Preparing transfer, please wait...
 
-_系统将自动执行转账操作，您可以通过下方的进度指示器查看实时状态。_`;
+_The system will automatically execute the transfer operation. You can view real-time status through the progress indicator below._`;
         
         // 先返回正在转移的消息，然后异步执行转账
         const transferId = generateTransferId();
         transferResult = {
           status: 'processing',
-          message: '正在执行跨链转账，请稍候...',
+          message: 'Executing cross-chain transfer...',
           transferId: transferId,
-          intent: parsedIntent
+          intent: parsedIntent,
+          startTime: new Date().toISOString()
         };
         
         // 存储初始状态
@@ -565,28 +586,28 @@ _系统将自动执行转账操作，您可以通过下方的进度指示器查�
         
         // 异步执行转账（不阻塞响应）
         executeCrossChainTransferAsync(parsedIntent, message, transferId).then((result: any) => {
-          console.log('异步转账完成:', result);
+          console.log('Async transfer completed:', result);
           // 这里可以发送WebSocket消息或存储结果供前端轮询
         }).catch((error: any) => {
-          console.error('异步转账失败:', error);
+          console.error('Async transfer failed:', error);
         });
         
       } catch (transferError) {
-        console.error('跨链转账执行失败:', transferError);
+        console.error('Cross-chain transfer execution failed:', transferError);
         transferResult = { 
           status: 'error',
-          error: transferError instanceof Error ? transferError.message : '未知错误' 
+          error: transferError instanceof Error ? transferError.message : 'Unknown error' 
         };
         
         // 如果转账准备失败，返回错误信息
-        userFriendlyResponse = `❌ **转账准备失败**
+        userFriendlyResponse = `❌ **Transfer Preparation Failed**
 
-${transferError instanceof Error ? transferError.message : '未知错误'}
+${transferError instanceof Error ? transferError.message : 'Unknown error'}
 
-请检查您的转账请求格式是否正确，或稍后重试。`;
+_Please check if your transfer request format is correct, or try again later._`;
       }
     } else {
-      console.log('不是跨链转账意图或parsedIntent为空');
+      console.log('Not a cross-chain transfer intent or parsedIntent is empty');
     }
 
     // 返回成功响应，包含美化后的AI回复、解析的意图和使用统计

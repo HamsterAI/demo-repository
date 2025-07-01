@@ -128,23 +128,17 @@ const LandingPage: React.FC<LandingPageProps> = ({ isLoggedIn, onLoginClick }) =
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50">
       {/* Hero Section */}
       <section className="relative overflow-hidden">
-        <div className="sticky top-4 left-2 z-50 ml-4 inline-block">
-          {isLoggedIn ? (
-            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-3 border border-slate-200/60">
-              <div className="flex items-center space-x-2">
-                <Wallet className="w-5 h-5 text-green-600" />
-                <span className="text-sm font-medium text-slate-700">已连接</span>
-              </div>
-            </div>
-          ) : (
+        {/* 只在未连接时显示Connect Wallet按钮 */}
+        {!isLoggedIn && (
+          <div className="sticky top-4 left-2 z-50 ml-4 inline-block">
             <button
               onClick={onLoginClick}
               className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-xl font-semibold shadow-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-200"
             >
-              连接钱包
+              Connect Wallet
             </button>
-          )}
-        </div>
+          </div>
+        )}
         <div className="absolute inset-0 bg-gradient-to-r from-purple-600/10 via-blue-600/10 to-cyan-600/10"></div>
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-32">
@@ -186,17 +180,17 @@ const LandingPage: React.FC<LandingPageProps> = ({ isLoggedIn, onLoginClick }) =
               {isLoggedIn ? (
                 <button 
                   onClick={() => window.location.href = '#chat'}
-                  className="group px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-2xl font-semibold text-lg shadow-2xl hover:shadow-3xl hover:from-purple-700 hover:to-blue-700 transition-all duration-300 transform hover:scale-105 flex items-center space-x-2"
+                  className="group px-8 py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-2xl font-semibold text-lg shadow-2xl hover:shadow-3xl hover:from-green-700 hover:to-emerald-700 transition-all duration-300 transform hover:scale-105 flex items-center space-x-2 mx-auto"
                 >
-                  <span>开始投资</span>
+                  <span>Start Investing</span>
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </button>
               ) : (
                 <button 
                   onClick={onLoginClick}
-                  className="group px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-2xl font-semibold text-lg shadow-2xl hover:shadow-3xl hover:from-purple-700 hover:to-blue-700 transition-all duration-300 transform hover:scale-105 flex items-center space-x-2"
+                  className="group px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-2xl font-semibold text-lg shadow-2xl hover:shadow-3xl hover:from-purple-700 hover:to-blue-700 transition-all duration-300 transform hover:scale-105 flex items-center space-x-2 mx-auto"
                 >
-                  <span>开始使用</span>
+                  <span>Get Started Now</span>
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </button>
               )}
@@ -338,9 +332,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ isLoggedIn, onLoginClick }) =
           {isLoggedIn ? (
             <button 
               onClick={() => window.location.href = '#chat'}
-              className="group px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-2xl font-semibold text-lg shadow-2xl hover:shadow-3xl hover:from-purple-700 hover:to-blue-700 transition-all duration-300 transform hover:scale-105 flex items-center space-x-2 mx-auto"
+              className="group px-8 py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-2xl font-semibold text-lg shadow-2xl hover:shadow-3xl hover:from-green-700 hover:to-emerald-700 transition-all duration-300 transform hover:scale-105 flex items-center space-x-2 mx-auto"
             >
-              <span>开始投资</span>
+              <span>Start Investing</span>
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </button>
           ) : (
@@ -348,7 +342,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ isLoggedIn, onLoginClick }) =
               onClick={onLoginClick}
               className="group px-8 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-2xl font-semibold text-lg shadow-2xl hover:shadow-3xl hover:from-purple-700 hover:to-blue-700 transition-all duration-300 transform hover:scale-105 flex items-center space-x-2 mx-auto"
             >
-              <span>立即开始</span>
+              <span>Get Started Now</span>
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </button>
           )}

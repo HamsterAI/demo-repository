@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transfer Status Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .result {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 3px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        input {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            width: 300px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Transfer Status Test</h1>
+    
+    <div class="test-section">
+        <h3>Test Transfer Status Query</h3>
+        <input type="text" id="transferId" placeholder="Enter transfer ID" value="transfer_1751249579356_dvx8gmarq">
+        <button onclick="testTransferStatus()">Query Status</button>
+        <div id="statusResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test New Transfer</h3>
+        <button onclick="testNewTransfer()">Create New Transfer</button>
+        <div id="newTransferResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test Message Rendering</h3>
+        <button onclick="testMessageRendering()">Test Message Rendering</button>
+        <div id="renderingResult" class="result"></div>
+    </div>
+
+    <script>
+        async function testTransferStatus() {
+            const transferId = document.getElementById('transferId').value;
+            const resultDiv = document.getElementById('statusResult');
+            
+            try {
+                resultDiv.textContent = 'Querying...';
+                
+                const response = await fetch(`http://localhost:5173/.netlify/functions/chat?transferId=${transferId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                });
+
+                const data = await response.json();
+                resultDiv.textContent = JSON.stringify(data, null, 2);
+                
+                // 检查是否包含Message ID
+                if (data.status && data.status.messageId) {
+                    resultDiv.innerHTML += '\n\n✅ Message ID found: ' + data.status.messageId;
+                    resultDiv.innerHTML += '\n✅ Explorer URL: ' + data.status.explorerUrl;
+                } else {
+                    resultDiv.innerHTML += '\n\n❌ No Message ID found in response';
+                }
+            } catch (error) {
+                resultDiv.textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function testNewTransfer() {
+            const resultDiv = document.getElementById('newTransferResult');
+            
+            try {
+                resultDiv.textContent = 'Creating new transfer...';
+                
+                const response = await fetch('http://localhost:5173/.netlify/functions/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message: 'transfer 0.001 BnMtoken from Solana to Ethereum'
+                    }),
+                });
+
+                const data = await response.json();
+                resultDiv.textContent = JSON.stringify(data, null, 2);
+                
+                if (data.transferResult && data.transferResult.transferId) {
+                    resultDiv.innerHTML += '\n\n✅ New transfer created with ID: ' + data.transferResult.transferId;
+                    document.getElementById('transferId').value = data.transferResult.transferId;
+                }
+            } catch (error) {
+                resultDiv.textContent = 'Error: ' + error.message;
+            }
+        }
+
+        function testMessageRendering() {
+            const resultDiv = document.getElementById('renderingResult');
+            
+            // 模拟转账成功状态
+            const mockTransferStatus = {
+                status: 'success',
+                message: 'Cross-chain transfer completed!',
+                messageId: '0xd6567fc714b3bef701cc66f4e9e44f4d86de9ebc14d775d269811fae89e3e033',
+                explorerUrl: 'https://ccip.chain.link/msg/0xd6567fc714b3bef701cc66f4e9e44f4d86de9ebc14d775d269811fae89e3e033'
+            };
+            
+            const mockContent = '🚀 Cross-chain Transfer Request Confirmed\n\n📋 Transfer Details:\nToken Type: Token\nTransfer Amount: 0.001 Token\nSource Chain: Solana\nTarget Chain: Ethereum\nReceiver Address: 0x4aEe...4ABb\n\n⏳ Status: Preparing transfer, please wait...\n\nThe system will automatically execute the transfer operation. You can view real-time status through the progress indicator below.\n\nExecuting cross-chain transfer...\n\nCross-chain transfer completed!';
+            
+            resultDiv.innerHTML = `
+                <h4>Mock Transfer Status:</h4>
+                <pre>${JSON.stringify(mockTransferStatus, null, 2)}</pre>
+                
+                <h4>Mock Content:</h4>
+                <pre>${mockContent}</pre>
+                
+                <h4>Rendering Logic Check:</h4>
+                <ul>
+                    <li>Is Assistant: ${true}</li>
+                    <li>Has Transfer Status: ${!!mockTransferStatus}</li>
+                    <li>Status is Success: ${mockTransferStatus.status === 'success'}</li>
+                    <li>Has Message ID: ${!!mockTransferStatus.messageId}</li>
+                    <li>Should Show Success Card: ${true && mockTransferStatus && mockTransferStatus.status === 'success' && mockTransferStatus.messageId}</li>
+                </ul>
+            `;
+        }
+    </script>
+</body>
+</html> 

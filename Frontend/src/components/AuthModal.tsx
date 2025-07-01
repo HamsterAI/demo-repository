@@ -45,7 +45,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => 
       } else {
         // 注册逻辑
         if (formData.password !== formData.confirmPassword) {
-          throw new Error('密码确认不匹配');
+          throw new Error('Password confirmation does not match');
         }
         await walletService.registerUser(formData.username, formData.email, formData.password);
       }
@@ -53,7 +53,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => 
       onSuccess();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : '操作失败');
+      setError(err instanceof Error ? err.message : 'Operation failed');
     } finally {
       setIsLoading(false);
     }
@@ -90,10 +90,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => 
         {/* 标题 */}
         <div className="text-center mb-6">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            {isLogin ? '欢迎回来' : '创建账户'}
+            {isLogin ? 'Welcome Back' : 'Create Account'}
           </h2>
           <p className="text-gray-600">
-            {isLogin ? '登录您的OmniNest账户' : '开始您的AI投资之旅'}
+            {isLogin ? 'Sign in to your OmniNest account' : 'Start your AI investment journey'}
           </p>
         </div>
 
@@ -109,7 +109,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => 
           {/* 用户名 */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              用户名
+              Username
             </label>
             <div className="relative">
               <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -119,7 +119,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => 
                 value={formData.username}
                 onChange={handleInputChange}
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                placeholder="请输入用户名"
+                placeholder="Enter your username"
                 required
               />
             </div>
@@ -129,7 +129,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => 
           {!isLogin && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                邮箱地址
+                Email Address
               </label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -139,7 +139,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => 
                   value={formData.email}
                   onChange={handleInputChange}
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  placeholder="请输入邮箱地址"
+                  placeholder="Enter your email address"
                   required
                 />
               </div>
@@ -149,7 +149,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => 
           {/* 密码 */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              密码
+              Password
             </label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -159,7 +159,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => 
                 value={formData.password}
                 onChange={handleInputChange}
                 className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                placeholder="请输入密码"
+                placeholder="Enter your password"
                 required
               />
               <button
@@ -180,7 +180,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => 
           {!isLogin && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                确认密码
+                Confirm Password
               </label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -190,7 +190,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => 
                   value={formData.confirmPassword}
                   onChange={handleInputChange}
                   className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  placeholder="请再次输入密码"
+                  placeholder="Confirm your password"
                   required
                 />
                 <button
@@ -217,10 +217,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => 
             {isLoading ? (
               <>
                 <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                {isLogin ? '登录中...' : '注册中...'}
+                {isLogin ? 'Signing in...' : 'Creating account...'}
               </>
             ) : (
-              isLogin ? '登录' : '注册'
+              isLogin ? 'Sign In' : 'Create Account'
             )}
           </button>
         </form>
@@ -228,12 +228,12 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => 
         {/* 切换模式 */}
         <div className="mt-6 text-center">
           <p className="text-gray-600">
-            {isLogin ? '还没有账户？' : '已有账户？'}
+            {isLogin ? "Don't have an account?" : 'Already have an account?'}
             <button
               onClick={switchMode}
               className="text-purple-600 hover:text-purple-700 font-semibold ml-1"
             >
-              {isLogin ? '立即注册' : '立即登录'}
+              {isLogin ? 'Sign up now' : 'Sign in now'}
             </button>
           </p>
         </div>
@@ -241,7 +241,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => 
         {/* 安全提示 */}
         <div className="mt-4 p-3 bg-blue-50 rounded-lg">
           <p className="text-xs text-blue-600">
-            🔒 您的私钥将安全加密存储在我们的服务器上，只有您能访问您的资产。
+            🔒 Your private keys will be securely encrypted and stored on our servers. Only you can access your assets.
           </p>
         </div>
       </div>

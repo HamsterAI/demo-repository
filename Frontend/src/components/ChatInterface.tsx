@@ -3,7 +3,6 @@ import {
   Send,
   MessageCircle,
   Wallet,
-  User,
   Bot,
   Plus,
   Menu,
@@ -16,8 +15,9 @@ import {
   Target,
   Loader2,
   LogIn,
-  XCircle,
   RefreshCw,
+  ExternalLink,
+  Copy,
 } from "lucide-react";
 
 import { chatService, ChatMessage, InvestmentIntent } from "../services/chatService";
@@ -75,6 +75,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ isLoggedIn, onLoginClick 
   // 钱包加载状态
   const [isWalletLoading, setIsWalletLoading] = useState(false);
   
+  // 复制成功状态
+  const [copySuccess, setCopySuccess] = useState<string | null>(null);
+  
   // DOM引用：用于自动滚动到消息底部
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
@@ -116,7 +119,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ isLoggedIn, onLoginClick 
           const info = await walletService.getUserWallet();
           setWalletInfo(info);
         } catch (error) {
-          console.error('加载钱包信息失败:', error);
+          console.error('Failed to load wallet info:', error);
         }
       };
       loadWalletInfo();
@@ -228,12 +231,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ isLoggedIn, onLoginClick 
     const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
     
     if (diffInHours < 1) {
-      return "刚刚";
+      return "Just now";
     } else if (diffInHours < 24) {
-      return `${diffInHours}小时前`;
+      return `${diffInHours}h ago`;
     } else {
       const diffInDays = Math.floor(diffInHours / 24);
-      return `${diffInDays}天前`;
+      return `${diffInDays}d ago`;
     }
   };
 
@@ -243,7 +246,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ isLoggedIn, onLoginClick 
 
     // 检查用户是否已登录
     if (!isLoggedIn) {
-      setError("请先登录以使用AI投资助手");
+      setError("Please log in to use the AI investment assistant");
       onLoginClick();
       return;
     }
@@ -276,7 +279,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ isLoggedIn, onLoginClick 
           content: response.response,
           sender: "assistant",
           timestamp: new Date(),
-          transferId: transferId // 保存转账ID
+          transferId: transferId, // 保存转账ID
+          transferStatus: response.transferResult,
         };
 
         setMessages(prev => [...prev, aiMessage]);
@@ -305,7 +309,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ isLoggedIn, onLoginClick 
       // 保存聊天记录
       saveCurrentChat();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "发送消息失败");
+      setError(err instanceof Error ? err.message : "Failed to send message");
     } finally {
       setIsTyping(false);
     }
@@ -316,6 +320,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ isLoggedIn, onLoginClick 
     console.log('📡 开始轮询转账状态，ID:', transferId);
     const maxAttempts = 60; // 最多轮询60次（5分钟）
     let attempts = 0;
+    let lastStatus: any = null;
     
     const poll = async () => {
       try {
@@ -323,24 +328,52 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ isLoggedIn, onLoginClick 
         const status = await checkTransferStatus(transferId);
         console.log('📊 轮询结果:', status);
         
-        if (status.status === 'success' || status.status === 'error') {
-          console.log('✅ 转账完成，停止轮询');
-          // 转账完成，更新消息
-          setMessages(prev => prev.map(msg => 
-            msg.transferId === transferId 
-              ? { ...msg, content: `${msg.content}\n\n${status.message}`, transferStatus: status }
-              : msg
-          ));
-          return; // 停止轮询
-        }
+        // 检查状态是否发生变化
+        const statusChanged = !lastStatus || 
+          lastStatus.status !== status.status || 
+          lastStatus.message !== status.message;
         
-        console.log('⏳ 转账进行中，继续轮询...');
-        // 更新进行中的状态
-        setMessages(prev => prev.map(msg => 
-          msg.transferId === transferId 
-            ? { ...msg, content: `${msg.content}\n\n${status.message}`, transferStatus: status }
-            : msg
-        ));
+        if (statusChanged) {
+          console.log('🔄 状态发生变化，更新消息');
+          console.log('新状态:', status);
+          lastStatus = status;
+          
+          if (status.status === 'success') {
+            console.log('✅ 转账成功，停止轮询');
+            console.log('Message ID:', status.messageId);
+            console.log('Explorer URL:', status.explorerUrl);
+            
+            // 转账完成，更新消息
+            setMessages(prev => {
+              console.log('🔄 更新消息状态 - 转账成功');
+              const updatedMessages = prev.map(msg => {
+                if (msg.transferId === transferId) {
+                  console.log('✅ 找到匹配的消息，更新transferStatus:', status);
+                  return { ...msg, content: `${msg.content}\n\n${status.message}`, transferStatus: status };
+                }
+                return msg;
+              });
+              console.log('📝 更新后的消息列表:', updatedMessages);
+              return updatedMessages;
+            });
+            return; // 停止轮询
+          }
+          
+          console.log('⏳ 转账进行中，更新状态...');
+          // 更新进行中的状态
+          setMessages(prev => {
+            console.log('🔄 更新消息状态 - 转账进行中');
+            const updatedMessages = prev.map(msg => {
+              if (msg.transferId === transferId) {
+                console.log('⏳ 找到匹配的消息，更新transferStatus:', status);
+                return { ...msg, content: `${msg.content}\n\n${status.message}`, transferStatus: status };
+              }
+              return msg;
+            });
+            console.log('📝 更新后的消息列表:', updatedMessages);
+            return updatedMessages;
+          });
+        }
         
         attempts++;
         if (attempts < maxAttempts) {
@@ -350,7 +383,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ isLoggedIn, onLoginClick 
           // 超时
           setMessages(prev => prev.map(msg => 
             msg.transferId === transferId 
-              ? { ...msg, content: `${msg.content}\n\n转账超时，请检查状态。`, transferStatus: { status: 'timeout' } }
+              ? { ...msg, content: `${msg.content}\n\nTransfer timeout, please check status.`, transferStatus: { status: 'timeout' } }
               : msg
           ));
         }
@@ -390,10 +423,113 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ isLoggedIn, onLoginClick 
   };
 
   // 渲染消息内容
-  const renderMessageContent = (content: string, sender: string) => {
+  const renderMessageContent = (content: string, sender: string, transferStatus?: any) => {
     const isAssistant = sender === 'assistant';
     
-    if (isAssistant && content.includes('**跨链转账请求已确认**')) {
+    console.log('🔍 渲染消息内容:', { 
+      content: content.substring(0, 100), 
+      sender, 
+      transferStatus,
+      hasTransferStatus: !!transferStatus,
+      transferStatusType: typeof transferStatus,
+      transferStatusKeys: transferStatus ? Object.keys(transferStatus) : 'none'
+    });
+    
+    // 优先检查转账状态
+    if (isAssistant && transferStatus && transferStatus.status === 'success') {
+      console.log('✅ 渲染转账成功消息，状态:', transferStatus);
+      // 转账成功消息，显示Message ID和CCIP Explorer链接
+      return (
+        <div className="text-sm leading-relaxed space-y-3">
+          <p className="whitespace-pre-wrap">{content}</p>
+          
+          {/* Message ID和CCIP Explorer链接 */}
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+            <div className="flex items-center space-x-2 mb-2">
+              <CheckCircle className="w-4 h-4 text-green-600" />
+              <span className="font-medium text-green-800">Transfer Completed Successfully</span>
+            </div>
+            
+            <div className="space-y-2 text-xs">
+              {transferStatus.messageId && (
+                <div className="flex flex-col space-y-1">
+                  <span className="text-green-700 font-medium">Message ID:</span>
+                  <div className="flex items-center space-x-2">
+                    <div className="flex-1 bg-green-100 px-2 py-1.5 rounded text-green-800 font-mono text-xs">
+                      {formatMessageId(transferStatus.messageId)}
+                    </div>
+                    <button
+                      onClick={() => copyToClipboard(transferStatus.messageId)}
+                      className="p-1.5 bg-green-200 hover:bg-green-300 rounded transition-colors flex-shrink-0"
+                      title="Copy Message ID"
+                    >
+                      <Copy className="w-3 h-3 text-green-700" />
+                    </button>
+                  </div>
+                </div>
+              )}
+              
+              {transferStatus.explorerUrl && (
+                <div className="flex flex-col space-y-1">
+                  <span className="text-green-700 font-medium">CCIP Explorer:</span>
+                  <a 
+                    href={transferStatus.explorerUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800 underline flex items-center space-x-1 break-all"
+                  >
+                    <span className="truncate">View Transaction</span>
+                    <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                  </a>
+                </div>
+              )}
+              
+              {!transferStatus.messageId && (
+                <div className="text-green-700">
+                  Transfer completed successfully! Check your wallet for the received tokens.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    } else if (isAssistant && transferStatus && (transferStatus.status === 'processing' || transferStatus.status === 'pending')) {
+      console.log('⏳ 渲染转账进行中消息，状态:', transferStatus.status);
+      // 转账进行中消息，显示动态效果
+      return (
+        <div className="text-sm leading-relaxed space-y-3">
+          <p className="whitespace-pre-wrap">{content}</p>
+          
+          {/* 转账进行中的动态状态 */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <div className="flex items-center space-x-2 mb-2">
+              <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
+              <span className="font-medium text-blue-800">Transfer in Progress</span>
+            </div>
+            
+            <div className="space-y-2">
+              {/* 动态进度条 */}
+              <div className="w-full bg-blue-200 rounded-full h-2">
+                <div className="bg-blue-600 h-2 rounded-full animate-pulse" style={{ width: '60%' }}></div>
+              </div>
+              
+              {/* 动态状态文本 */}
+              <div className="text-xs text-blue-700">
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-blue-600 rounded-full animate-ping"></div>
+                  <span>Processing cross-chain transaction...</span>
+                </div>
+              </div>
+              
+              <div className="text-xs text-blue-600">
+                This may take a few minutes. Please wait...
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    } else if (isAssistant && content.includes('Cross-chain Transfer Request Confirmed')) {
+      console.log('📋 渲染转账详情消息');
       // 这是转账详情消息，使用特殊渲染
       return (
         <div 
@@ -402,6 +538,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ isLoggedIn, onLoginClick 
         />
       );
     } else {
+      console.log('📝 渲染普通消息');
       // 普通消息
       return (
         <p className="text-sm leading-relaxed whitespace-pre-wrap">{content}</p>
@@ -437,26 +574,56 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ isLoggedIn, onLoginClick 
           </div>
           <div>
             <h3 className="font-semibold text-slate-800 capitalize">{intent.intent}</h3>
-            <p className="text-sm text-slate-600">投资意图已识别</p>
+            <p className="text-sm text-slate-600">Investment intent recognized</p>
           </div>
         </div>
         
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
-            <span className="text-slate-600">金额:</span>
-            <span className="font-medium text-slate-800">{intent.entities.amount || '未指定'}</span>
+            <span className="text-slate-600">Amount:</span>
+            <span className="font-medium text-slate-800">{intent.entities.amount || 'Not specified'}</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-slate-600">目标链:</span>
-            <span className="font-medium text-slate-800">{intent.entities.chain || '未指定'}</span>
+            <span className="text-slate-600">Target chain:</span>
+            <span className="font-medium text-slate-800">{intent.entities.chain || 'Not specified'}</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-slate-600">资产类型:</span>
-            <span className="font-medium text-slate-800">{intent.entities.asset_type || '未指定'}</span>
+            <span className="text-slate-600">Asset type:</span>
+            <span className="font-medium text-slate-800">{intent.entities.asset_type || 'Not specified'}</span>
           </div>
         </div>
       </div>
     );
+  };
+
+  // 复制到剪贴板功能
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      console.log('✅ Message ID copied to clipboard');
+      setCopySuccess('Message ID copied to clipboard');
+      // 3秒后清除成功提示
+      setTimeout(() => setCopySuccess(null), 3000);
+    } catch (err) {
+      console.error('❌ Failed to copy to clipboard:', err);
+      // 降级方案：使用传统的复制方法
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      console.log('✅ Message ID copied to clipboard (fallback method)');
+      setCopySuccess('Message ID copied to clipboard');
+      // 3秒后清除成功提示
+      setTimeout(() => setCopySuccess(null), 3000);
+    }
+  };
+
+  // 格式化Message ID显示
+  const formatMessageId = (messageId: string) => {
+    if (messageId.length <= 20) return messageId;
+    return `${messageId.substring(0, 10)}...${messageId.substring(messageId.length - 10)}`;
   };
 
   // 如果用户未登录，显示登录提示
@@ -468,17 +635,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ isLoggedIn, onLoginClick 
             <Bot className="w-8 h-8 text-white" />
           </div>
           <h2 className="text-2xl font-bold text-slate-900 mb-4">
-            需要登录
+            Login Required
           </h2>
           <p className="text-slate-600 mb-6">
-            请先登录您的账户以使用AI投资助手功能
+            Please log in to your account to use the AI investment assistant
           </p>
           <button
             onClick={onLoginClick}
             className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-3 rounded-xl font-semibold hover:from-purple-700 hover:to-blue-700 transition-all duration-200 flex items-center justify-center space-x-2"
           >
             <LogIn className="w-5 h-5" />
-            <span>立即登录</span>
+            <span>Login Now</span>
           </button>
         </div>
       </div>
@@ -495,7 +662,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ isLoggedIn, onLoginClick 
           {/* 侧边栏头部 */}
           <div className="p-4 border-b border-slate-200/60">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-slate-800">聊天历史</h2>
+              <h2 className="text-lg font-semibold text-slate-800">Chat History</h2>
               <button
                 onClick={startNewChat}
                 className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
@@ -511,33 +678,33 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ isLoggedIn, onLoginClick 
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center space-x-2">
                   <Wallet className="w-5 h-5 text-purple-600" />
-                  <span className="text-sm font-semibold text-slate-800">钱包余额</span>
+                  <span className="text-sm font-semibold text-slate-800">Wallet Balance</span>
                 </div>
                 <button
                   onClick={() => {
-                    console.log('🔄 侧边栏刷新按钮被点击');
+                    console.log('🔄 Sidebar refresh button clicked');
                     if (isLoggedIn) {
                       const loadWalletInfo = async () => {
                         try {
-                          console.log('🔄 开始刷新钱包信息...');
+                          console.log('🔄 Starting to refresh wallet info...');
                           setIsWalletLoading(true);
                           const info = await walletService.getUserWallet();
-                          console.log('🔄 获取到钱包信息:', info);
+                          console.log('🔄 Got wallet info:', info);
                           setWalletInfo(info);
                         } catch (error) {
-                          console.error('❌ 刷新钱包信息失败:', error);
+                          console.error('❌ Failed to refresh wallet info:', error);
                         } finally {
                           setIsWalletLoading(false);
                         }
                       };
                       loadWalletInfo();
                     } else {
-                      console.log('❌ 用户未登录，无法刷新钱包信息');
+                      console.log('❌ User not logged in, cannot refresh wallet info');
                     }
                   }}
                   disabled={isWalletLoading}
                   className="p-1 hover:bg-purple-100 rounded transition-colors disabled:opacity-50"
-                  title="刷新余额"
+                  title="Refresh balance"
                 >
                   <RefreshCw className={`w-4 h-4 text-purple-600 ${isWalletLoading ? 'animate-spin' : ''}`} />
                 </button>
@@ -553,17 +720,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ isLoggedIn, onLoginClick 
                     </span>
                     <button
                       onClick={() => {
-                        console.log('🔄 ETH刷新按钮被点击');
+                        console.log('🔄 ETH refresh button clicked');
                         if (isLoggedIn) {
                           const loadWalletInfo = async () => {
                             try {
-                              console.log('🔄 开始刷新ETH余额...');
+                              console.log('🔄 Starting to refresh ETH balance...');
                               setIsWalletLoading(true);
                               const info = await walletService.getUserWallet();
-                              console.log('🔄 获取到钱包信息:', info);
+                              console.log('🔄 Got wallet info:', info);
                               setWalletInfo(info);
                             } catch (error) {
-                              console.error('❌ 刷新ETH余额失败:', error);
+                              console.error('❌ Failed to refresh ETH balance:', error);
                             } finally {
                               setIsWalletLoading(false);
                             }
@@ -573,7 +740,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ isLoggedIn, onLoginClick 
                       }}
                       disabled={isWalletLoading}
                       className="p-1 hover:bg-blue-100 rounded transition-colors disabled:opacity-50"
-                      title="刷新ETH余额"
+                      title="Refresh ETH balance"
                     >
                       <RefreshCw className={`w-3 h-3 text-blue-600 ${isWalletLoading ? 'animate-spin' : ''}`} />
                     </button>
@@ -594,17 +761,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ isLoggedIn, onLoginClick 
                     </span>
                     <button
                       onClick={() => {
-                        console.log('🔄 SOL刷新按钮被点击');
+                        console.log('🔄 SOL refresh button clicked');
                         if (isLoggedIn) {
                           const loadWalletInfo = async () => {
                             try {
-                              console.log('🔄 开始刷新SOL余额...');
+                              console.log('🔄 Starting to refresh SOL balance...');
                               setIsWalletLoading(true);
                               const info = await walletService.getUserWallet();
-                              console.log('🔄 获取到钱包信息:', info);
+                              console.log('🔄 Got wallet info:', info);
                               setWalletInfo(info);
                             } catch (error) {
-                              console.error('❌ 刷新SOL余额失败:', error);
+                              console.error('❌ Failed to refresh SOL balance:', error);
                             } finally {
                               setIsWalletLoading(false);
                             }
@@ -614,7 +781,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ isLoggedIn, onLoginClick 
                       }}
                       disabled={isWalletLoading}
                       className="p-1 hover:bg-green-100 rounded transition-colors disabled:opacity-50"
-                      title="刷新SOL余额"
+                      title="Refresh SOL balance"
                     >
                       <RefreshCw className={`w-3 h-3 text-green-600 ${isWalletLoading ? 'animate-spin' : ''}`} />
                     </button>
@@ -632,14 +799,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ isLoggedIn, onLoginClick 
             {chatHistory.length === 0 ? (
               <div className="text-center text-slate-500 py-8">
                 <MessageCircle className="w-12 h-12 mx-auto mb-4 text-slate-300" />
-                <p>暂无聊天记录</p>
+                <p>No chat history</p>
               </div>
             ) : (
               chatHistory.map((chat) => (
                 <div
                   key={chat.id}
                   onClick={() => loadChat(chat.id)}
-                  className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                  className={`group p-3 rounded-lg cursor-pointer transition-colors ${
                     currentChatId === chat.id
                       ? "bg-purple-50 border border-purple-200"
                       : "hover:bg-slate-50"
@@ -656,7 +823,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ isLoggedIn, onLoginClick 
                     </div>
                     <button
                       onClick={(e) => deleteChat(chat.id, e)}
-                      className="p-1 hover:bg-red-100 rounded transition-colors opacity-0 group-hover:opacity-100"
+                      className="p-1 hover:bg-red-100 rounded transition-colors opacity-0 group-hover:opacity-100 hover:opacity-100"
+                      title="Delete chat"
                     >
                       <Trash2 className="w-4 h-4 text-red-500" />
                     </button>
@@ -707,6 +875,22 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ isLoggedIn, onLoginClick 
           </div>
         )}
 
+        {/* 复制成功提示横幅 */}
+        {copySuccess && (
+          <div className="bg-green-50 border-l-4 border-green-400 p-4 mx-4 mt-4 rounded-lg">
+            <div className="flex items-center">
+              <CheckCircle className="w-5 h-5 text-green-400 mr-2" />
+              <span className="text-green-700">{copySuccess}</span>
+              <button
+                onClick={() => setCopySuccess(null)}
+                className="ml-auto text-green-400 hover:text-green-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* 投资意图显示区域 */}
         {lastIntent && (
           <div className="mx-4 mt-4">
@@ -722,66 +906,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ isLoggedIn, onLoginClick 
               className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}
             >
               <div
-                className={`max-w-xs lg:max-w-md px-4 py-3 rounded-2xl ${
+                className={`max-w-xs lg:max-w-lg px-4 py-3 rounded-2xl ${
                   message.sender === "user"
                     ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white"
                     : "bg-white/80 backdrop-blur-sm border border-slate-200/60 text-slate-800"
                 }`}
               >
-                {renderMessageContent(message.content, message.sender)}
-                
-                {/* 转账状态显示 */}
-                {message.transferStatus && (
-                  <div className="mt-3 p-2 bg-slate-50 rounded-lg">
-                    <div className="flex items-center space-x-2 mb-2">
-                      {message.transferStatus.status === 'processing' && (
-                        <>
-                          <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
-                          <span className="text-xs font-medium text-blue-600">转账进行中...</span>
-                        </>
-                      )}
-                      {message.transferStatus.status === 'success' && (
-                        <>
-                          <CheckCircle className="w-4 h-4 text-green-600" />
-                          <span className="text-xs font-medium text-green-600">转账成功</span>
-                        </>
-                      )}
-                      {message.transferStatus.status === 'error' && (
-                        <>
-                          <XCircle className="w-4 h-4 text-red-600" />
-                          <span className="text-xs font-medium text-red-600">转账失败</span>
-                        </>
-                      )}
-                    </div>
-                    
-                    {message.transferStatus.status === 'processing' && (
-                      <div className="w-full bg-slate-200 rounded-full h-1">
-                        <div className="bg-blue-600 h-1 rounded-full animate-pulse" style={{ width: '60%' }}></div>
-                      </div>
-                    )}
-                    
-                    {message.transferStatus.status === 'success' && message.transferStatus.result && (
-                      <div className="text-xs text-slate-600">
-                        <div className="font-medium text-green-700 mb-1">✅ 转账执行成功</div>
-                        <div className="text-xs text-slate-500">
-                          命令已成功执行，请检查您的钱包余额。
-                        </div>
-                      </div>
-                    )}
-                    
-                    {message.transferStatus.status === 'error' && (
-                      <div className="text-xs text-red-600">
-                        <div className="font-medium mb-1">❌ 转账执行失败</div>
-                        <div className="text-xs">
-                          {message.transferStatus.error.includes('tx.partialSign is not a function') 
-                            ? 'CCIP脚本签名问题，请联系技术支持。'
-                            : message.transferStatus.error
-                          }
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
+                {renderMessageContent(message.content, message.sender, message.transferStatus)}
                 
                 <p className={`text-xs mt-2 ${
                   message.sender === "user" ? "text-purple-100" : "text-slate-500"
@@ -798,7 +929,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ isLoggedIn, onLoginClick 
               <div className="bg-white/80 backdrop-blur-sm border border-slate-200/60 rounded-2xl px-4 py-3">
                 <div className="flex items-center space-x-2">
                   <Loader2 className="w-4 h-4 text-purple-600 animate-spin" />
-                  <span className="text-sm text-slate-600">AI正在思考...</span>
+                  <span className="text-sm text-slate-600">Hamster is thinking...</span>
                 </div>
               </div>
             </div>
@@ -816,7 +947,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ isLoggedIn, onLoginClick 
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="告诉我您的投资需求，例如：我想将30%的资金投资到Solana上的高收益RWA..."
+                placeholder="For example: I want to allocate 30% of my funds to high-yield RWA on Solana..."
                 className="w-full resize-none border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white/50 backdrop-blur-sm"
                 rows={1}
                 style={{ minHeight: "48px", maxHeight: "120px" }}

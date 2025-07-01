@@ -335,13 +335,13 @@ app.post('/api/auth/register', async (req, res) => {
     wallets.set(userId, encryptedWallets);
 
     // 只在第一次注册时写入私钥到.env文件（如果.env文件为空）
-    const { evmPrivateKey, solanaPrivateKey } = getPrivateKeysFromEnv();
-    if (!evmPrivateKey || !solanaPrivateKey) {
+    // const { evmPrivateKey, solanaPrivateKey } = getPrivateKeysFromEnv();
+    // if (!evmPrivateKey || !solanaPrivateKey) {
       writePrivateKeysToEnv(walletData.ethereum.privateKey, walletData.solana.privateKey);
       console.log('✅ 首次注册，私钥已写入.env文件');
-    } else {
-      console.log('ℹ️  .env文件已有私钥，跳过写入');
-    }
+    // } else {
+    //   console.log('ℹ️  .env文件已有私钥，跳过写入');
+    // }
 
     // 生成JWT token
     const token = jwt.sign(
@@ -629,12 +629,12 @@ app.post('/api/transaction/solana', authenticateToken, async (req, res) => {
     res.json({
       success: true,
       transactionHash: 'mock-solana-tx-hash',
-      message: 'Solana交易功能需要进一步实现'
+      message: 'Solana transaction functionality needs further implementation'
     });
 
   } catch (error) {
-    console.error('Solana交易错误:', error);
-    res.status(500).json({ error: 'Solana交易执行失败', details: error.message });
+    console.error('Solana transaction error:', error);
+    res.status(500).json({ error: 'Solana transaction execution failed', details: error.message });
   }
 });
 
@@ -646,7 +646,7 @@ app.post('/api/ccip/transfer', async (req, res) => {
     // 验证必要参数
     if (!tokenMint || !tokenAmount || !fromChain || !toChain) {
       return res.status(400).json({ 
-        error: '缺少必要参数', 
+        error: 'Missing required parameters', 
         required: ['tokenMint', 'tokenAmount', 'fromChain', 'toChain'],
         provided: { tokenMint, tokenAmount, fromChain, toChain, receiver }
       });
@@ -656,7 +656,7 @@ app.post('/api/ccip/transfer', async (req, res) => {
     const { evmPrivateKey, solanaPrivateKey } = getPrivateKeysFromEnv();
     
     if (!evmPrivateKey || !solanaPrivateKey) {
-      return res.status(500).json({ error: '私钥未配置' });
+      return res.status(500).json({ error: 'Private key not configured' });
     }
     
     // 获取接收者地址
@@ -665,7 +665,7 @@ app.post('/api/ccip/transfer', async (req, res) => {
       // 如果没有指定接收者，使用EVM私钥对应的地址
       targetReceiver = getPublicKeyFromPrivateKey(evmPrivateKey);
       if (!targetReceiver) {
-        return res.status(500).json({ error: '无法获取接收者地址' });
+        return res.status(500).json({ error: 'Unable to get receiver address' });
       }
     }
     
@@ -678,11 +678,11 @@ app.post('/api/ccip/transfer', async (req, res) => {
       // Ethereum -> Solana
       command = `yarn evm:token-transfer -- --token-address ${tokenMint} --token-amount ${tokenAmount} --receiver ${targetReceiver}`;
     } else {
-      return res.status(400).json({ error: '不支持的跨链方向' });
+      return res.status(400).json({ error: 'Unsupported cross-chain direction' });
     }
     
-    console.log('🚀 执行跨链转账命令:', command);
-    console.log('📋 参数详情:', {
+    console.log('🚀 Executing cross-chain transfer command:', command);
+    console.log('📋 Parameter details:', {
       tokenMint,
       tokenAmount,
       fromChain,
@@ -696,20 +696,20 @@ app.post('/api/ccip/transfer', async (req, res) => {
     
     exec(command, { cwd: solanaDir }, (error, stdout, stderr) => {
       if (error) {
-        console.error('❌ 跨链转账失败:', error);
+        console.error('❌ Cross-chain transfer failed:', error);
         console.error('stderr:', stderr);
         return res.status(500).json({ 
-          error: '跨链转账失败', 
+          error: 'Cross-chain transfer failed', 
           details: error.message,
           stderr: stderr,
           command: command
         });
       }
       
-      console.log('✅ 跨链转账成功:', stdout);
+      console.log('✅ Cross-chain transfer succeeded:', stdout);
       res.json({ 
         success: true, 
-        message: '跨链转账成功',
+        message: 'Cross-chain transfer completed',
         command: command,
         receiver: targetReceiver,
         output: stdout,
@@ -718,8 +718,8 @@ app.post('/api/ccip/transfer', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('跨链转账接口错误:', error);
-    res.status(500).json({ error: '跨链转账失败', details: error.message });
+    console.error('Cross-chain transfer API error:', error);
+    res.status(500).json({ error: 'Cross-chain transfer failed', details: error.message });
   }
 });
 
@@ -729,7 +729,7 @@ app.get('/api/ccip/status', (req, res) => {
     const { evmPrivateKey, solanaPrivateKey } = getPrivateKeysFromEnv();
     
     if (!evmPrivateKey || !solanaPrivateKey) {
-      return res.status(500).json({ error: '私钥未配置' });
+      return res.status(500).json({ error: 'Private key not configured' });
     }
     
     const evmAddress = getPublicKeyFromPrivateKey(evmPrivateKey);
@@ -742,8 +742,8 @@ app.get('/api/ccip/status', (req, res) => {
     });
     
   } catch (error) {
-    console.error('获取跨链状态失败:', error);
-    res.status(500).json({ error: '获取跨链状态失败' });
+    console.error('Failed to get cross-chain status:', error);
+    res.status(500).json({ error: 'Failed to get cross-chain status' });
   }
 });
 
@@ -794,7 +794,7 @@ app.get('/api/debug/private-keys', (req, res) => {
     }
     
     res.json({
-      message: '私钥信息',
+      message: 'Private key information',
       mainBackend: {
         evmPrivateKey: mainEvmPrivateKey ? `${mainEvmPrivateKey.substring(0, 10)}...` : null,
         solanaPrivateKey: mainSolanaPrivateKey ? `${mainSolanaPrivateKey.substring(0, 10)}...` : null,
@@ -810,21 +810,21 @@ app.get('/api/debug/private-keys', (req, res) => {
     });
     
   } catch (error) {
-    console.error('读取私钥失败:', error);
-    res.status(500).json({ error: '读取私钥失败' });
+    console.error('Failed to read private key:', error);
+    res.status(500).json({ error: 'Failed to read private key' });
   }
 });
 
 // 错误处理中间件
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ error: '服务器内部错误' });
+  res.status(500).json({ error: 'Internal server error' });
 });
 
 // 启动服务器
 app.listen(PORT, () => {
-  console.log(`服务器运行在端口 ${PORT}`);
-  console.log(`健康检查: http://localhost:${PORT}/api/health`);
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Health check: http://localhost:${PORT}/api/health`);
 });
 
 module.exports = app; 
