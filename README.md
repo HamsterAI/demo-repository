@@ -3,7 +3,7 @@
 ## Project Overview
 
 HamsterAI is an AI-integrated, decentralized finance platform for cross-chain investment management, focusing on Real World Assets (RWA). The system adopts a **custodial wallet architecture** to provide users with a secure and convenient cross-chain investment experience.
-
+youtube:https://youtu.be/0q5mOeXyS5w
 ## 🚀 Core Features
 
 ### 🔐 Custodial Wallet System
