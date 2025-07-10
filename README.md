@@ -1,8 +1,8 @@
-# OmniNest - AI-powered Cross-chain RWA Investment Management Platform
+# HamsterAI - AI-powered Cross-chain RWA Investment Management Platform
 
 ## Project Overview
 
-OmniNest is an AI-integrated, decentralized finance platform for cross-chain investment management, focusing on Real World Assets (RWA). The system adopts a **custodial wallet architecture** to provide users with a secure and convenient cross-chain investment experience.
+HamsterAI is an AI-integrated, decentralized finance platform for cross-chain investment management, focusing on Real World Assets (RWA). The system adopts a **custodial wallet architecture** to provide users with a secure and convenient cross-chain investment experience.
 
 ## 🚀 Core Features
 
@@ -20,7 +20,7 @@ OmniNest is an AI-integrated, decentralized finance platform for cross-chain inv
 
 ### 🔗 Cross-chain Interoperability
 - **Chainlink CCIP Integration**: Secure cross-chain asset transfers
-- **Multi-chain Support**: Ethereum, Solana, Avalanche, and more
+- **Multi-chain Support**: Ethereum, Solana, and more in the future
 - **Unified Management Interface**: Manage multi-chain assets from a single dashboard
 
 ## 🏗️ System Architecture
