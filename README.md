@@ -1,97 +1,99 @@
-# OmniNest - AI驱动的跨链RWA投资管理平台
+# OmniNest - AI-powered Cross-chain RWA Investment Management Platform
 
-## 项目概述
+## Project Overview
 
-OmniNest是一个集成了人工智能和去中心化金融的跨链投资管理平台，专注于真实世界资产（RWA）的投资。系统采用**托管钱包架构**，为用户提供安全、便捷的跨链投资体验。
-Add commentMore actions
-## 🚀 核心特性
+OmniNest is an AI-integrated, decentralized finance platform for cross-chain investment management, focusing on Real World Assets (RWA). The system adopts a **custodial wallet architecture** to provide users with a secure and convenient cross-chain investment experience.
 
-### 🔐 托管钱包系统
-- **自动钱包创建**：用户注册时自动生成Ethereum和Solana钱包
-- **私钥安全存储**：使用AES-256加密存储用户私钥
-- **JWT认证**：安全的用户身份验证和会话管理
-- **余额查询**：实时显示多链资产余额
+## 🚀 Core Features
 
-### 🤖 AI驱动的投资管理
-- **自然语言交互**：通过聊天界面与AI助手交互
-- **智能投资解析**：AI自动解析用户投资意图
-- **跨链资产转移**：支持Ethereum ↔ Solana资产转移
-- **投资策略推荐**：基于市场数据的智能投资建议
+### 🔐 Custodial Wallet System
+- **Automatic Wallet Creation**: Ethereum and Solana wallets are automatically generated upon user registration
+- **Secure Private Key Storage**: User private keys are stored with AES-256 encryption
+- **JWT Authentication**: Secure user identity verification and session management
+- **Balance Inquiry**: Real-time display of multi-chain asset balances
 
-### 🔗 跨链互操作性
-- **Chainlink CCIP集成**：安全的跨链资产转移
-- **多链支持**：Ethereum、Solana、Avalanche等
-- **统一管理界面**：单一面板管理多链资产
+### 🤖 AI-driven Investment Management
+- **Natural Language Interaction**: Chat with the AI assistant via a conversational interface
+- **Intelligent Investment Parsing**: AI automatically interprets user investment intentions
+- **Cross-chain Asset Transfer**: Supports asset transfers between Ethereum and Solana
+- **Investment Strategy Recommendation**: Smart investment suggestions based on market data
 
-## 🏗️ 系统架构
+### 🔗 Cross-chain Interoperability
+- **Chainlink CCIP Integration**: Secure cross-chain asset transfers
+- **Multi-chain Support**: Ethereum, Solana, Avalanche, and more
+- **Unified Management Interface**: Manage multi-chain assets from a single dashboard
 
-### 前端架构
-```
+## 🏗️ System Architecture
+
+### Frontend Structure
+```text
 Frontend/
 ├── src/
 │   ├── components/
-│   │   ├── AuthModal.tsx          # 用户认证模态框
-│   │   ├── UserWalletDisplay.tsx  # 钱包信息显示
-│   │   ├── ChatInterface.tsx      # AI聊天界面
-│   │   ├── LandingPage.tsx        # 首页
-│   │   └── StrategyYieldPage.tsx  # 投资策略页面
+│   │   ├── AuthModal.tsx          # User authentication modal
+│   │   ├── UserWalletDisplay.tsx  # Wallet info display
+│   │   ├── ChatInterface.tsx      # AI chat interface
+│   │   ├── LandingPage.tsx        # Landing page
+│   │   └── StrategyYieldPage.tsx  # Investment strategy page
 │   ├── services/
-│   │   ├── walletService.ts       # 钱包服务
-│   │   └── chatService.ts         # 聊天服务
-│   └── App.tsx                    # 主应用组件
+│   │   ├── walletService.ts       # Wallet service
+│   │   └── chatService.ts         # Chat service
+│   └── App.tsx                    # Main app component
 ```
 
-### 后端架构
-```
+### Backend Structure
+```text
 Backend/
-├── server.js                      # Express服务器
-├── package.json                   # 后端依赖
-└── 集成现有的CCIP脚本
+├── server.js                      # Express server
+├── package.json                   # Backend dependencies
+└── ccip-scripts/                  # Integrated CCIP scripts
+```
 ```
 
-## 🛠️ 技术栈
 
-### 前端
+## 🛠️ Tech Stack
+
+### Frontend
 - **React 18** + **TypeScript**
-- **Tailwind CSS** - 现代化UI设计
-- **Vite** - 快速构建工具
-- **Ethers.js** - Ethereum交互
-- **Solana Web3.js** - Solana交互
+- **Tailwind CSS** - Modern UI design
+- **Vite** - Fast build tool
+- **Ethers.js** - Ethereum interaction
+- **Solana Web3.js** - Solana interaction
 
-### 后端
+### Backend
 - **Node.js** + **Express**
-- **JWT** - 用户认证
-- **bcryptjs** - 密码加密
-- **AES-256** - 私钥加密
-- **Ethers.js** - 区块链交互
+- **JWT** - User authentication
+- **bcryptjs** - Password encryption
+- **AES-256** - Private key encryption
+- **Ethers.js** - Blockchain interaction
 
-### 区块链
-- **Ethereum** (Sepolia测试网)
+### Blockchain
+- **Ethereum** (Sepolia Testnet)
 - **Solana** (Devnet)
-- **Chainlink CCIP** - 跨链协议
+- **Chainlink CCIP** - Cross-chain protocol
 
-## 📦 安装和运行
+## 📦 Installation & Usage
 
-### 1. 克隆项目
+### 1. Clone the Repository
 ```bash
 git clone <repository-url>
 cd demo-repository
 ```
 
-### 2. 安装前端依赖
+### 2. Install Frontend Dependencies
 ```bash
 cd Frontend
 npm install
 ```
 
-### 3. 安装后端依赖
+### 3. Install Backend Dependencies
 ```bash
 cd Backend
 npm install
 ```
 
-### 4. 配置环境变量
-创建 `.env` 文件：
+### 4. Configure Environment Variables
+Create a `.env` file:
 
 ```bash
 # Backend/.env
@@ -102,140 +104,140 @@ SOLANA_RPC_URL=https://api.devnet.solana.com
 PORT=3001
 ```
 
-### 5. 启动服务
+### 5. Start the Services
 
-#### 启动后端服务器
+#### Start Backend Server
 ```bash
 cd Backend
 npm run dev
 ```
 
-#### 启动前端开发服务器
+#### Start Frontend Dev Server
 ```bash
 cd Frontend
 npm run dev
 ```
 
-## 🔄 改造说明
+## 🔄 Refactoring Notes
 
-### 原有架构问题
-- 用户需要连接自己的钱包
-- 后端使用固定的私钥
-- 无法为每个用户提供个性化服务
+### Issues with Previous Architecture
+- Users had to connect their own wallets
+- Backend used a fixed private key
+- No personalized service for each user
 
-### 新架构优势
-- **用户友好**：无需管理私钥，注册即可使用
-- **安全性**：私钥加密存储，多重安全保护
-- **可扩展性**：支持多用户，每个用户独立钱包
-- **统一管理**：后端统一管理所有用户交易
+### Advantages of the New Architecture
+- **User-friendly**: No need to manage private keys, ready to use after registration
+- **Security**: Encrypted private key storage, multiple security layers
+- **Scalability**: Supports multiple users, each with an independent wallet
+- **Unified Management**: Backend centrally manages all user transactions
 
-### 主要改造内容
+### Main Refactoring Points
 
-#### 1. 前端改造
-- ✅ 移除Dynamic Widget钱包连接
-- ✅ 添加用户注册/登录界面
-- ✅ 实现托管钱包显示组件
-- ✅ 添加登录状态管理
-- ✅ 更新所有页面组件接口
+#### 1. Frontend Refactoring
+- ✅ Removed Dynamic Widget wallet connection
+- ✅ Added user registration/login interface
+- ✅ Implemented custodial wallet display component
+- ✅ Added login state management
+- ✅ Updated all page component interfaces
 
-#### 2. 后端改造
-- ✅ 创建用户认证API
-- ✅ 实现钱包生成和管理
-- ✅ 添加私钥加密存储
-- ✅ 集成交易执行功能
-- ✅ 提供钱包信息查询API
+#### 2. Backend Refactoring
+- ✅ Created user authentication API
+- ✅ Implemented wallet generation and management
+- ✅ Added encrypted private key storage
+- ✅ Integrated transaction execution functionality
+- ✅ Provided wallet information query API
 
-#### 3. 安全措施
-- ✅ JWT令牌认证
-- ✅ 密码bcrypt加密
-- ✅ 私钥AES-256加密
-- ✅ CORS跨域保护
-- ✅ 输入验证和错误处理
+#### 3. Security Measures
+- ✅ JWT token authentication
+- ✅ Password encryption with bcrypt
+- ✅ Private key encryption with AES-256
+- ✅ CORS protection
+- ✅ Input validation and error handling
 
-## 🚀 使用流程
+## 🚀 User Flow
 
-### 1. 用户注册
-1. 访问应用首页
-2. 点击"开始使用"按钮
-3. 填写用户名、邮箱和密码
-4. 系统自动生成Ethereum和Solana钱包
+### 1. User Registration
+1. Visit the application homepage
+2. Click the "Get Started" button
+3. Fill in username, email, and password
+4. System automatically generates Ethereum and Solana wallets
 
-### 2. 用户登录
-1. 输入用户名和密码
-2. 系统验证身份并返回JWT令牌
-3. 显示用户钱包信息和余额
+### 2. User Login
+1. Enter username and password
+2. System verifies identity and returns JWT token
+3. Display user wallet information and balances
 
-### 3. AI投资交互
-1. 进入聊天界面
-2. 用自然语言描述投资需求
-3. AI解析意图并执行相应操作
-4. 查看投资结果和建议
+### 3. AI Investment Interaction
+1. Enter the chat interface
+2. Describe investment needs in natural language
+3. AI interprets intent and executes corresponding actions
+4. View investment results and suggestions
 
-### 4. 跨链资产转移
-1. 通过AI命令或手动操作
-2. 系统使用用户私钥执行交易
-3. 通过Chainlink CCIP完成跨链转移
+### 4. Cross-chain Asset Transfer
+1. Use AI commands or manual operation
+2. System uses the user's private key to execute transactions
+3. Complete cross-chain transfer via Chainlink CCIP
 
-## 🔒 安全考虑
+## 🔒 Security Considerations
 
-### 私钥管理
-- 私钥使用AES-256加密存储
-- 仅在交易执行时临时解密
-- 服务器重启后私钥重新加密
+### Private Key Management
+- Private keys are stored encrypted with AES-256
+- Decrypted only temporarily during transaction execution
+- Re-encrypted after server restart
 
-### 用户认证
-- JWT令牌24小时过期
-- 密码使用bcrypt加密存储
-- 支持令牌刷新机制
+### User Authentication
+- JWT tokens expire after 24 hours
+- Passwords are stored encrypted with bcrypt
+- Token refresh mechanism supported
 
-### 网络安全
-- HTTPS强制使用
-- CORS策略限制
-- 输入验证和SQL注入防护
+### Network Security
+- Enforced HTTPS
+- CORS policy restrictions
+- Input validation and SQL injection protection
 
-## 📈 未来扩展
+## 📈 Future Plans
 
-### 功能扩展
-- [ ] 数据库集成（PostgreSQL/MongoDB）
-- [ ] 实时价格数据集成
-- [ ] 更多区块链支持
-- [ ] 移动端应用
+### Feature Expansion
+- [ ] Database integration (PostgreSQL/MongoDB)
+- [ ] Real-time price data integration
+- [ ] Support for more blockchains
+- [ ] Mobile application
 
-### 安全增强
-- [ ] 硬件钱包集成
-- [ ] 多因素认证
-- [ ] 交易签名验证
-- [ ] 审计日志系统
+### Security Enhancements
+- [ ] Hardware wallet integration
+- [ ] Multi-factor authentication
+- [ ] Transaction signature verification
+- [ ] Audit log system
 
-### 性能优化
-- [ ] Redis缓存集成
-- [ ] 负载均衡
-- [ ] CDN加速
-- [ ] 微服务架构
+### Performance Optimization
+- [ ] Redis cache integration
+- [ ] Load balancing
+- [ ] CDN acceleration
+- [ ] Microservices architecture
 
-## 🤝 贡献指南
+## 🤝 Contribution Guide
 
-1. Fork项目
-2. 创建功能分支
-3. 提交更改
-4. 推送到分支
-5. 创建Pull Request
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to your branch
+5. Create a Pull Request
 
-## 📄 许可证
+## 📄 License
 
-MIT License - 详见LICENSE文件
+MIT License - See LICENSE file for details
 
-## 📞 联系我们
+## 📞 Contact Us
 
-- 项目主页：[GitHub Repository]
-- 问题反馈：[Issues]
-- 邮箱：support@omninest.com
+- Project homepage: [GitHub Repository]
+- Issue tracker: [Issues]
+- Email: support@omninest.com
 
 ---
 
-**注意**：这是一个演示项目，生产环境部署前请确保：
-- 更改所有默认密钥
-- 配置安全的数据库
-- 启用HTTPS
-- 进行安全审计
-- 添加监控和日志系统
+**Note:** This is a demo project. Before deploying to production, please ensure:
+- All default keys are changed
+- A secure database is configured
+- HTTPS is enabled
+- Security audits are performed
+- Monitoring and logging systems are added
