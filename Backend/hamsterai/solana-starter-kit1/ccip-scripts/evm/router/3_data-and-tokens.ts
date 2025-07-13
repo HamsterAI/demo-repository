@@ -1,29 +1,4 @@
-/**
- * EVM to Solana CCIP Combined Data and Token Transfer Example
- *
- * This tutorial demonstrates how to send both tokens and arbitrary data in a single message
- * from Ethereum Sepolia to Solana Devnet using Chainlink CCIP (Cross-Chain Interoperability Protocol).
- *
- * INSTRUCTIONS:
- * 1. Set up your environment variables in .env:
- *    - EVM_PRIVATE_KEY: Your Ethereum private key
- *    - EVM_RPC_URL (optional): Custom RPC URL for Ethereum Sepolia
- *
- * 2. Customize the message parameters below if needed
- *
- * 3. Run the script with: npm run evm:data-and-tokens
- *
- * You can override settings with command line arguments:
- * --fee-token       : Token to use for fees (native, wrapped-native, link, or address)
- * --receiver        : Solana receiver address
- * --amount          : Amount of tokens to send (in raw format with all decimals, e.g., "1000000000000000" for 0.001 with 18 decimals)
- * --data            : Message data to send (string or hex with 0x prefix)
- * --compute-units   : Solana compute units
- * --log-level       : Logging verbosity (0-5, where 0 is most verbose)
- *
- * Example:
- * npm run evm:data-and-tokens -- --amount 50000000000000000 --data "Custom transfer message"
- */
+
 
 import { parseScriptArgs } from "../utils/message-utils";
 import {
