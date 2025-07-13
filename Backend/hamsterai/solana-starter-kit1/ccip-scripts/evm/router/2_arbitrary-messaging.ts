@@ -1,28 +1,4 @@
-/**
- * EVM to Solana CCIP Arbitrary Messaging Example
- *
- * This tutorial demonstrates how to send arbitrary messages from Ethereum Sepolia to Solana Devnet
- * using Chainlink CCIP (Cross-Chain Interoperability Protocol). No tokens are transferred.
- *
- * INSTRUCTIONS:
- * 1. Set up your environment variables in .env:
- *    - EVM_PRIVATE_KEY: Your Ethereum private key
- *    - EVM_RPC_URL (optional): Custom RPC URL for Ethereum Sepolia
- *
- * 2. Customize the message parameters below if needed
- *
- * 3. Run the script with: npm run evm:arbitrary-message
- *
- * You can override settings with command line arguments:
- * --fee-token       : Token to use for fees (native, wrapped-native, link, or address)
- * --receiver        : Solana receiver address
- * --data            : Message data to send (string or hex with 0x prefix)
- * --compute-units   : Solana compute units
- * --log-level       : Logging verbosity (0-5, where 0 is most verbose)
- *
- * Example:
- * npm run evm:arbitrary-message -- --data "Hello, Solana!"
- */
+
 
 import { parseScriptArgs } from "../utils/message-utils";
 import { setupClientContext } from "../utils/setup-client";
