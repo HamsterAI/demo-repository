@@ -1,34 +1,4 @@
-/**
- * Solana to Ethereum CCIP Token Transfer Example
- *
- * This tutorial demonstrates how to send tokens from Solana Devnet to Ethereum Sepolia
- * using Chainlink CCIP (Cross-Chain Interoperability Protocol).
- *
- * INSTRUCTIONS:
- * 1. Ensure you have a Solana wallet with:
- *    - SOL for transaction fees (at least 0.005 SOL)
- *    - Tokens to send (BnM token)
- *
- * 2. Customize the message parameters below if needed
- *
- * 3. Run the script with: npm run svm:token-transfer
- *
- * You can override settings with command line arguments:
- * --fee-token       : Token to use for fees (native, wrapped-native, link, or address)
- * --keypair         : Path to your keypair file
- * --log-level       : Logging verbosity (TRACE, DEBUG, INFO, WARN, ERROR, SILENT)
- * --skip-preflight  : Skip transaction preflight checks
- *
- * Token transfer specific arguments:
- * --token-mint      : Token mint address to transfer (or comma-separated list for multiple tokens)
- * --token-amount    : Amount to transfer (or comma-separated list matching the token-mint order)
- *
- * Example for single token transfer:
- * npm run svm:token-transfer -- --token-mint TokenAddressHere --token-amount 1000000
- *
- * Example for multiple token transfer:
- * npm run svm:token-transfer -- --token-mint "TokenAddress1,TokenAddress2" --token-amount "1000000,2000000"
- */
+
 
 // Import our unified configuration
 import {
