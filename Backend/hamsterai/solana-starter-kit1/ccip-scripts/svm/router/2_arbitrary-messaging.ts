@@ -1,23 +1,4 @@
-/**
- * Solana to Ethereum CCIP Arbitrary Messaging Example
- *
- * This tutorial demonstrates how to send arbitrary messages from Solana Devnet to Ethereum Sepolia
- * using Chainlink CCIP (Cross-Chain Interoperability Protocol).
- *
- * INSTRUCTIONS:
- * 1. Ensure you have a Solana wallet with:
- *    - SOL for transaction fees (at least 0.005 SOL)
- *
- * 2. Customize the message parameters below if needed
- *
- * 3. Run the script with: npm run svm:arbitrary-messaging
- *
- * You can override settings with command line arguments:
- * --fee-token       : Token to use for fees (native, wrapped-native, link, or address)
- * --keypair         : Path to your keypair file
- * --log-level       : Logging verbosity (TRACE, DEBUG, INFO, WARN, ERROR, SILENT)
- * --skip-preflight  : Skip transaction preflight checks
- */
+
 
 // Import AbiCoder from ethers for encoding message data
 import { AbiCoder } from "ethers";
