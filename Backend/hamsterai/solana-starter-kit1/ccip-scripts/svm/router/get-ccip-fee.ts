@@ -1,18 +1,4 @@
-/**
- * Solana CCIP Fee Calculation Utility
- *
- * This script demonstrates how to estimate fees for CCIP cross-chain transactions
- * without actually sending any messages or tokens.
- *
- * INSTRUCTIONS:
- * 1. Run the script with: npm run ccip:fee
- *
- * You can override settings with command line arguments:
- * --fee-token       : Token to use for fees (native, wrapped-native, link, or address)
- * --keypair         : Path to your keypair file
- * --log-level       : Logging verbosity (TRACE, DEBUG, INFO, WARN, ERROR, SILENT)
- * --skip-preflight  : Skip transaction preflight checks
- */
+
 
 import * as anchor from "@coral-xyz/anchor";
 import { PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
