@@ -159,153 +159,87 @@ async function executeCommand(command: string): Promise<any> {
   };
 }
 
-// 执行跨链转账的函数
-async function executeCrossChainTransfer(intent: any, message: string) {
-  try {
-    console.log('Starting cross-chain transfer execution, original intent:', JSON.stringify(intent, null, 2));
-    
-    const entities = intent.entities;
-    console.log('Parsed entities:', JSON.stringify(entities, null, 2));
-    
-    // 映射参数
-    const tokenMint = '3PjyGzj1jGVgHSKS4VR1Hr1memm63PmN8L9rtPDKwzZ6'; // BnM token mint
-    
-    // 检查是否有amount字段，如果没有则从用户输入中提取
-    let amount = entities.amount;
-    if (!amount) {
-      console.log('No amount field in entities, trying to extract from user input...');
-      console.log('User original input:', message);
-      
-      // 从用户输入中提取数量
-      const amountMatch = message.match(/(\d+(?:\.\d+)?)\s*(?:bnm|burnmint|token|BnMtoken)/i);
-      if (amountMatch) {
-        amount = parseFloat(amountMatch[1]);
-        console.log('Extracted amount from user input:', amount);
-      } else {
-        // 如果没有找到数量，返回错误提示用户
-        console.log('Amount not found, cannot execute transfer');
-        throw new Error('Please specify transfer amount, e.g.: 0.005 BnMtoken');
-      }
+// 新的跨链转账API调用，返回链上详细信息
+async function executeCrossChainTransferViaApi(intent: any, message: string) {
+  // 参数提取
+  const entities = intent.entities;
+  let amount = entities.amount;
+  if (!amount) {
+    // 从用户输入中提取数量
+    const amountMatch = message.match(/(\d+(?:\.\d+)?)\s*(?:bnm|burnmint|token|BnMtoken)/i);
+    if (amountMatch) {
+      amount = parseFloat(amountMatch[1]);
+    } else {
+      throw new Error('Please specify transfer amount, e.g.: 0.005 BnMtoken');
     }
-    
-    const tokenAmount = Math.floor(amount * 1000000000).toString(); // 转换为最小单位（9位小数）
-    
-    // 确定链方向
-    const fromChain = entities.source_chain?.toLowerCase() || entities.platform?.toLowerCase() || entities.from_chain?.toLowerCase() || 'solana';
-    const toChain = entities.chain?.toLowerCase() || 'ethereum';
-    
-    // 获取EVM地址作为receiver
-    const receiverAddress = getEVMAddressFromEnv();
-    
-    console.log('Parameters parsed from AI intent:', {
+  }
+  const tokenAmount = Math.floor(amount * 1000000000).toString();
+  const tokenMint = '3PjyGzj1jGVgHSKS4VR1Hr1memm63PmN8L9rtPDKwzZ6';
+  const fromChain = entities.source_chain?.toLowerCase() || entities.platform?.toLowerCase() || entities.from_chain?.toLowerCase() || 'solana';
+  const toChain = entities.chain?.toLowerCase() || 'ethereum';
+  // 获取EVM地址作为receiver
+  const receiverAddress = getEVMAddressFromEnv();
+
+  // 调用后端API
+  const apiUrl = process.env.SVM_TRANSFER_API_URL || 'http://localhost:3001/api/svm/token-transfer';
+  const res = await fetch(apiUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
       tokenMint,
       tokenAmount,
       fromChain,
       toChain,
-      receiverAddress
-    });
-    
-    // 构建命令
-    let command = '';
-    if (fromChain === 'solana' && toChain === 'ethereum') {
-      // Solana -> Ethereum
-      command = `cd /Users/sun/Solana/solana_Aimax/HamsterAI/demo-repository/Backend/hamsterai/solana-starter-kit1 && yarn svm:token-transfer -- --token-mint ${tokenMint} --token-amount ${tokenAmount} --receiver ${receiverAddress}`;
-    } else if (fromChain === 'ethereum' && toChain === 'solana') {
-      // Ethereum -> Solana
-      command = `cd /Users/sun/Solana/solana_Aimax/HamsterAI/demo-repository/Backend/hamsterai/solana-starter-kit1 && yarn evm:token-transfer -- --token-address ${tokenMint} --token-amount ${tokenAmount} --receiver ${receiverAddress}`;
-    } else {
-      console.log('Unsupported cross-chain direction:', { fromChain, toChain });
-      throw new Error(`Unsupported cross-chain direction: ${fromChain} -> ${toChain}`);
-    }
-    
-    console.log('🚀 Executing cross-chain transfer command:', command);
-    
-    // 执行命令
-    const { stdout, stderr } = await execAsync(command);
-    
-    if (stderr) {
-      console.error('Command execution stderr:', stderr);
-    }
-    
-    console.log('✅ Cross-chain transfer succeeded:', stdout);
-    
-    return {
-      success: true,
-      command: command,
-      output: stdout,
-      params: { tokenMint, tokenAmount, fromChain, toChain, receiverAddress }
-    };
-    
-  } catch (error) {
-    console.error('Cross-chain transfer execution failed:', error);
-    throw error;
+      receiver: receiverAddress
+    })
+  });
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error('后端转账API调用失败: ' + errText);
   }
+  // 这里返回后端的所有详细信息
+  return await res.json();
 }
 
-// 异步执行跨链转账
+// 异步执行跨链转账，合并链上详细信息到状态
 async function executeCrossChainTransferAsync(intent: any, message: string, transferId: string): Promise<any> {
   try {
-    console.log('Starting async cross-chain transfer execution:', intent);
-    
-    // 更新状态为进行中
     transferStatus.set(transferId, {
       status: 'processing',
       message: 'Executing cross-chain transfer...',
       startTime: new Date().toISOString(),
       intent: intent
     });
-    
-    // 构建命令
-    const command = buildTransferCommand(intent);
-    console.log('Built command:', command);
-    
-    // 执行命令
-    const result = await executeCommand(command);
-    console.log('Async transfer execution result:', result);
-    
-    // 从输出中提取Message ID
-    let messageId = null;
-    let explorerUrl = null;
-    if (result.output) {
-      console.log('Extracting Message ID from output...');
-      // 尝试多种格式匹配Message ID
-      const messageIdMatch = result.output.match(/Message ID: (0x[a-fA-F0-9]+)/);
-      if (messageIdMatch) {
-        messageId = messageIdMatch[1];
-        explorerUrl = `https://ccip.chain.link/msg/${messageId}`;
-        console.log('✅ Message ID extracted:', messageId);
-        console.log('✅ Explorer URL:', explorerUrl);
-      } else {
-        console.log('❌ Message ID not found in output');
-        console.log('Output preview:', result.output.substring(0, 500));
-      }
+    // 直接调用API
+    const result = await executeCrossChainTransferViaApi(intent, message);
+    // 合并链上详细信息
+    let txId, messageId, explorerUrl, logs;
+    if (result && typeof result === 'object') {
+      const inner = (result as any).result || result;
+      txId = inner.txId;
+      messageId = inner.messageId;
+      explorerUrl = inner.explorerUrl;
+      logs = inner.logs;
     }
-    
-    // 更新状态为成功
     const successResult = {
       status: 'success',
-      result: result,
+      txId,
+      messageId,
+      explorerUrl,
+      logs,
+      result,
       message: 'Cross-chain transfer completed!',
-      messageId: messageId,
-      explorerUrl: explorerUrl,
       endTime: new Date().toISOString()
     };
-    
     transferStatus.set(transferId, successResult);
-    
     return successResult;
   } catch (error) {
-    console.error('Async transfer execution failed:', error);
-    
-    // 更新状态为失败
     const errorResult = {
       status: 'error',
       error: error instanceof Error ? error.message : 'Unknown error',
       endTime: new Date().toISOString()
     };
-    
     transferStatus.set(transferId, errorResult);
-    
     return errorResult;
   }
 }

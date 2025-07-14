@@ -9,6 +9,28 @@ const fs = require('fs');
 const path = require('path');
 const bs58 = require('bs58');
 
+// ====== Swagger 文档支持 ======
+const swaggerJsdoc = require('swagger-jsdoc');
+const swaggerUi = require('swagger-ui-express');
+
+const swaggerDefinition = {
+  openapi: '3.0.0',
+  info: {
+    title: 'HamsterAI API Docs',
+    version: '1.0.0',
+    description: 'API documentation for HamsterAI backend',
+  },
+  servers: [
+    { url: 'http://localhost:3001' }
+  ],
+};
+
+const swaggerOptions = {
+  swaggerDefinition,
+  apis: [__filename], // 只扫描本文件注释
+};
+const swaggerSpec = swaggerJsdoc(swaggerOptions);
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -747,6 +769,63 @@ app.get('/api/ccip/status', (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/svm/token-transfer:
+ *   post:
+ *     summary: 发起SVM跨链转账
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               tokenMint:
+ *                 type: string
+ *                 description: 代币mint地址
+ *               tokenAmount:
+ *                 type: string
+ *                 description: 转账数量（最小单位）
+ *               fromChain:
+ *                 type: string
+ *                 description: 源链
+ *               toChain:
+ *                 type: string
+ *                 description: 目标链
+ *               receiver:
+ *                 type: string
+ *                 description: 接收方地址
+ *     responses:
+ *       200:
+ *         description: 转账结果
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 result:
+ *                   type: object
+ *                   description: 详细结果
+ */
+// ====== SVM Token Transfer API ======
+app.post('/api/svm/token-transfer', async (req, res) => {
+  try {
+    // 动态引入，避免启动时依赖冲突
+    const { runTokenTransfer } = require('./hamsterai/solana-starter-kit1/ccip-scripts/svm/router/api');
+    const { tokenMint, tokenAmount, fromChain, toChain, receiver } = req.body;
+    if (!tokenMint || !tokenAmount || !fromChain || !toChain || !receiver) {
+      return res.status(400).json({ success: false, error: '参数不完整' });
+    }
+    const result = await runTokenTransfer({ tokenMint, tokenAmount, fromChain, toChain, receiver });
+    res.json({ success: true, result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // 健康检查
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
@@ -821,10 +900,14 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
+// ====== Swagger文档路由注册在所有接口之后 ======
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
 // 启动服务器
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Health check: http://localhost:${PORT}/api/health`);
+  console.log(`Swagger docs: http://localhost:${PORT}/api-docs`);
 });
 
 module.exports = app; 
