@@ -42,7 +42,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ isLoggedIn, onLoginClick 
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "1",
-      content: "Hello! I'm your AI investment assistant. I can help you manage cross-chain RWA investments. You can tell me your investment needs in natural language, for example: 'I want to invest 30% of my funds into high-yield RWA on Solana'.",
+      content: "Hello! I'm your AI investment assistant. I can help you manage cross-chain RWA investments. You can tell me your investment needs in natural language, for example: 'Transfer 0.001BnM token from solana to ethereum'.",
       sender: "assistant",
       timestamp: new Date(),
     },
@@ -183,7 +183,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ isLoggedIn, onLoginClick 
     setMessages([
       {
         id: Date.now().toString(),
-        content: "Hello! I'm your AI investment assistant. I can help you manage cross-chain RWA investments. You can tell me your investment needs in natural language, for example: 'I want to invest 30% of my funds into high-yield RWA on Solana'.",
+        content: "Hello! I'm your AI investment assistant. I can help you manage cross-chain RWA investments. You can tell me your investment needs in natural language, for example: 'Transfer 0.001BnM token from solana to ethereum'.",
         sender: "assistant",
         timestamp: new Date(),
       },

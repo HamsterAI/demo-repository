@@ -1,18 +1,22 @@
-const express = require('express');
-const cors = require('cors');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const { ethers } = require('ethers');
-const { Keypair, Connection, PublicKey } = require('@solana/web3.js');
-const crypto = require('crypto');
-const fs = require('fs');
-const path = require('path');
-const bs58 = require('bs58');
+import express from 'express';
+import cors from 'cors';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { ethers } from 'ethers';
+import { Keypair, Connection, PublicKey } from '@solana/web3.js';
+import crypto from 'crypto';
+import * as fs from 'fs';
+import * as path from 'path';
+import bs58 from 'bs58';
+import swaggerJsdoc from 'swagger-jsdoc';
+import swaggerUi from 'swagger-ui-express';
+import dotenv from 'dotenv';
+dotenv.config({ path: '/Users/sun/Solana/solana_Aimax/HamsterAI/demo-repository/Backend/hamsterai/solana-starter-kit1/.env' });
+
 
 // ====== Swagger 文档支持 ======
-const swaggerJsdoc = require('swagger-jsdoc');
-const swaggerUi = require('swagger-ui-express');
-
+const swaggerJsdocAny: any = swaggerJsdoc;
+const swaggerUiAny: any = swaggerUi;
 const swaggerDefinition = {
   openapi: '3.0.0',
   info: {
@@ -24,12 +28,11 @@ const swaggerDefinition = {
     { url: 'http://localhost:3001' }
   ],
 };
-
 const swaggerOptions = {
   swaggerDefinition,
-  apis: [__filename], // 只扫描本文件注释
+  apis: [__filename],
 };
-const swaggerSpec = swaggerJsdoc(swaggerOptions);
+const swaggerSpec = swaggerJsdocAny(swaggerOptions);
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -43,12 +46,43 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-producti
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'your-encryption-key-32-chars-long';
 
 // 从.env文件读取RPC配置
+function getRpcConfigFromEnv() {
+  const mainEnvPath = path.join(__dirname, '.env');
+  const solanaEnvPath = path.join(__dirname, 'hamsterai/solana-starter-kit1/.env');
+  let evmRpcUrl: string | null = null;
+  let solanaRpcUrl: string | null = null;
+  if (fs.existsSync(solanaEnvPath)) {
+    const envContent = fs.readFileSync(solanaEnvPath, 'utf8');
+    const lines = envContent.split('\n');
+    for (const line of lines) {
+      if (line.startsWith('ETHEREUM_RPC_URL=')) {
+        evmRpcUrl = line.substring('ETHEREUM_RPC_URL='.length);
+      }
+      if (line.startsWith('SOLANA_RPC_URL=')) {
+        solanaRpcUrl = line.substring('SOLANA_RPC_URL='.length);
+      }
+    }
+  }
+  if (!evmRpcUrl && fs.existsSync(mainEnvPath)) {
+    const envContent = fs.readFileSync(mainEnvPath, 'utf8');
+    const lines = envContent.split('\n');
+    for (const line of lines) {
+      if (line.startsWith('ETHEREUM_RPC_URL=')) {
+        evmRpcUrl = line.substring('ETHEREUM_RPC_URL='.length);
+      }
+      if (line.startsWith('SOLANA_RPC_URL=')) {
+        solanaRpcUrl = line.substring('SOLANA_RPC_URL='.length);
+      }
+    }
+  }
+  return { evmRpcUrl, solanaRpcUrl };
+}
 const rpcConfig = getRpcConfigFromEnv();
-const EVM_RPC_URL = rpcConfig.evmRpcUrl || process.env.EVM_RPC_URL || 'https://eth-sepolia.g.alchemy.com/v2/your-api-key';
+const ETHEREUM_RPC_URL = rpcConfig.evmRpcUrl || process.env.ETHEREUM_RPC_URL || 'https://sepolia.infura.io/v3/53602922191941a48de2b6d1a97f7999';
 const SOLANA_RPC_URL = rpcConfig.solanaRpcUrl || process.env.SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com';
 
 console.log('🔧 RPC配置:');
-console.log('  Ethereum RPC:', EVM_RPC_URL);
+console.log('  Ethereum RPC:', ETHEREUM_RPC_URL);
 console.log('  Solana RPC:', SOLANA_RPC_URL);
 
 // 内存存储（生产环境应使用数据库）
@@ -56,7 +90,7 @@ const users = new Map();
 const wallets = new Map();
 
 // 加密函数
-function encrypt(text) {
+function encrypt(text: string): string {
   const iv = crypto.randomBytes(16);
   const key = crypto.scryptSync(ENCRYPTION_KEY, 'salt', 32);
   const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
@@ -66,7 +100,7 @@ function encrypt(text) {
 }
 
 // 解密函数
-function decrypt(text) {
+function decrypt(text: string): string {
   const parts = text.split(':');
   const iv = Buffer.from(parts[0], 'hex');
   const encrypted = parts[1];
@@ -78,9 +112,8 @@ function decrypt(text) {
 }
 
 // 从私钥获取公钥地址
-function getPublicKeyFromPrivateKey(privateKey) {
+function getPublicKeyFromPrivateKey(privateKey: string): string | null {
   try {
-    // 移除0x前缀（如果有的话）
     const cleanPrivateKey = privateKey.startsWith('0x') ? privateKey.slice(2) : privateKey;
     const wallet = new ethers.Wallet(cleanPrivateKey);
     return wallet.address;
@@ -94,15 +127,11 @@ function getPublicKeyFromPrivateKey(privateKey) {
 function getPrivateKeysFromEnv() {
   const mainEnvPath = path.join(__dirname, '.env');
   const solanaEnvPath = path.join(__dirname, 'hamsterai/solana-starter-kit1/.env');
-  
-  let evmPrivateKey = null;
-  let solanaPrivateKey = null;
-  
-  // 优先从solana-starter-kit1/.env读取
+  let evmPrivateKey: string | null = null;
+  let solanaPrivateKey: string | null = null;
   if (fs.existsSync(solanaEnvPath)) {
     const envContent = fs.readFileSync(solanaEnvPath, 'utf8');
     const lines = envContent.split('\n');
-    
     for (const line of lines) {
       if (line.startsWith('EVM_PRIVATE_KEY=')) {
         evmPrivateKey = line.split('=')[1];
@@ -112,12 +141,9 @@ function getPrivateKeysFromEnv() {
       }
     }
   }
-  
-  // 如果solana-starter-kit1/.env中没有，从主后端.env读取
   if (!evmPrivateKey && fs.existsSync(mainEnvPath)) {
     const envContent = fs.readFileSync(mainEnvPath, 'utf8');
     const lines = envContent.split('\n');
-    
     for (const line of lines) {
       if (line.startsWith('EVM_PRIVATE_KEY=')) {
         evmPrivateKey = line.split('=')[1];
@@ -127,69 +153,20 @@ function getPrivateKeysFromEnv() {
       }
     }
   }
-  
   return { evmPrivateKey, solanaPrivateKey };
 }
 
-// 读取.env文件中的RPC配置
-function getRpcConfigFromEnv() {
-  const mainEnvPath = path.join(__dirname, '.env');
-  const solanaEnvPath = path.join(__dirname, 'hamsterai/solana-starter-kit1/.env');
-  
-  let evmRpcUrl = null;
-  let solanaRpcUrl = null;
-  
-  // 优先从solana-starter-kit1/.env读取
-  if (fs.existsSync(solanaEnvPath)) {
-    const envContent = fs.readFileSync(solanaEnvPath, 'utf8');
-    const lines = envContent.split('\n');
-    
-    for (const line of lines) {
-      if (line.startsWith('EVM_RPC_URL=')) {
-        evmRpcUrl = line.substring('EVM_RPC_URL='.length);
-      }
-      if (line.startsWith('SOLANA_RPC_URL=')) {
-        solanaRpcUrl = line.substring('SOLANA_RPC_URL='.length);
-      }
-    }
-  }
-  
-  // 如果solana-starter-kit1/.env中没有，从主后端.env读取
-  if (!evmRpcUrl && fs.existsSync(mainEnvPath)) {
-    const envContent = fs.readFileSync(mainEnvPath, 'utf8');
-    const lines = envContent.split('\n');
-    
-    for (const line of lines) {
-      if (line.startsWith('EVM_RPC_URL=')) {
-        evmRpcUrl = line.substring('EVM_RPC_URL='.length);
-      }
-      if (line.startsWith('SOLANA_RPC_URL=')) {
-        solanaRpcUrl = line.substring('SOLANA_RPC_URL='.length);
-      }
-    }
-  }
-  
-  return { evmRpcUrl, solanaRpcUrl };
-}
-
 // 写入私钥到.env文件
-function writePrivateKeysToEnv(ethereumPrivateKey, solanaPrivateKey) {
+function writePrivateKeysToEnv(ethereumPrivateKey: string, solanaPrivateKey: string) {
   try {
-    // 写入到主后端的.env文件
     const mainEnvPath = path.join(__dirname, '.env');
     let mainEnvContent = '';
-    
-    // 如果.env文件存在，读取现有内容
     if (fs.existsSync(mainEnvPath)) {
       mainEnvContent = fs.readFileSync(mainEnvPath, 'utf8');
     }
-    
-    // 更新或添加私钥
     const mainLines = mainEnvContent.split('\n');
     let evmKeyUpdated = false;
     let solanaKeyUpdated = false;
-    
-    // 检查并更新现有的私钥行
     for (let i = 0; i < mainLines.length; i++) {
       if (mainLines[i].startsWith('EVM_PRIVATE_KEY=')) {
         mainLines[i] = `EVM_PRIVATE_KEY=${ethereumPrivateKey}`;
@@ -200,34 +177,22 @@ function writePrivateKeysToEnv(ethereumPrivateKey, solanaPrivateKey) {
         solanaKeyUpdated = true;
       }
     }
-    
-    // 如果没有找到对应的行，添加新的行
     if (!evmKeyUpdated) {
       mainLines.push(`EVM_PRIVATE_KEY=${ethereumPrivateKey}`);
     }
     if (!solanaKeyUpdated) {
       mainLines.push(`SOLANA_PRIVATE_KEY=${solanaPrivateKey}`);
     }
-    
-    // 写入主后端.env文件
     const newMainEnvContent = mainLines.join('\n');
     fs.writeFileSync(mainEnvPath, newMainEnvContent);
-    
-    // 写入到solana-starter-kit1目录下的.env文件
     const solanaEnvPath = path.join(__dirname, 'hamsterai/solana-starter-kit1/.env');
     let solanaEnvContent = '';
-    
-    // 如果solana-starter-kit1/.env文件存在，读取现有内容
     if (fs.existsSync(solanaEnvPath)) {
       solanaEnvContent = fs.readFileSync(solanaEnvPath, 'utf8');
     }
-    
-    // 更新或添加私钥到solana-starter-kit1/.env
     const solanaLines = solanaEnvContent.split('\n');
     let solanaEvmKeyUpdated = false;
     let solanaSolanaKeyUpdated = false;
-    
-    // 检查并更新现有的私钥行
     for (let i = 0; i < solanaLines.length; i++) {
       if (solanaLines[i].startsWith('EVM_PRIVATE_KEY=')) {
         solanaLines[i] = `EVM_PRIVATE_KEY=${ethereumPrivateKey}`;
@@ -238,31 +203,23 @@ function writePrivateKeysToEnv(ethereumPrivateKey, solanaPrivateKey) {
         solanaSolanaKeyUpdated = true;
       }
     }
-    
-    // 如果没有找到对应的行，添加新的行
     if (!solanaEvmKeyUpdated) {
       solanaLines.push(`EVM_PRIVATE_KEY=${ethereumPrivateKey}`);
     }
     if (!solanaSolanaKeyUpdated) {
       solanaLines.push(`SOLANA_PRIVATE_KEY=${solanaPrivateKey}`);
     }
-    
-    // 确保solana-starter-kit1目录存在
     const solanaEnvDir = path.dirname(solanaEnvPath);
     if (!fs.existsSync(solanaEnvDir)) {
       fs.mkdirSync(solanaEnvDir, { recursive: true });
     }
-    
-    // 写入solana-starter-kit1/.env文件
     const newSolanaEnvContent = solanaLines.join('\n');
     fs.writeFileSync(solanaEnvPath, newSolanaEnvContent);
-    
     console.log('✅ 私钥已成功写入两个 .env 文件');
     console.log(`📝 主后端: ${mainEnvPath}`);
     console.log(`📝 Solana脚本: ${solanaEnvPath}`);
     console.log(`📝 Ethereum私钥: ${ethereumPrivateKey.substring(0, 10)}...`);
     console.log(`📝 Solana私钥: ${solanaPrivateKey.substring(0, 10)}...`);
-    
   } catch (error) {
     console.error('❌ 写入.env文件失败:', error);
   }
@@ -270,12 +227,8 @@ function writePrivateKeysToEnv(ethereumPrivateKey, solanaPrivateKey) {
 
 // 生成新钱包
 function generateWallets() {
-  // 生成Ethereum钱包
   const ethereumWallet = ethers.Wallet.createRandom();
-  
-  // 生成Solana钱包
   const solanaKeypair = Keypair.generate();
-  
   return {
     ethereum: {
       address: ethereumWallet.address,
@@ -289,15 +242,13 @@ function generateWallets() {
 }
 
 // 中间件：验证JWT token
-function authenticateToken(req, res, next) {
+function authenticateToken(req: any, res: any, next: any) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
-
   if (!token) {
     return res.status(401).json({ error: '访问令牌缺失' });
   }
-
-  jwt.verify(token, JWT_SECRET, (err, user) => {
+  jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
     if (err) {
       return res.status(403).json({ error: '无效的访问令牌' });
     }
@@ -307,29 +258,44 @@ function authenticateToken(req, res, next) {
 }
 
 // 路由
-
-// 用户注册
-app.post('/api/auth/register', async (req, res) => {
+/**
+ * @swagger
+ * /api/auth/register:
+ *   post:
+ *     summary: 用户注册
+ *     description: 注册新用户并生成钱包
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               username:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: 注册成功
+ *       400:
+ *         description: 参数错误
+ *       409:
+ *         description: 用户名已存在
+ */
+app.post('/api/auth/register', async (req: any, res: any) => {
   try {
     const { username, email, password } = req.body;
-
-    // 验证输入
     if (!username || !email || !password) {
       return res.status(400).json({ error: '所有字段都是必需的' });
     }
-
-    // 检查用户是否已存在
     if (users.has(username)) {
       return res.status(409).json({ error: '用户名已存在' });
     }
-
-    // 加密密码
     const hashedPassword = await bcrypt.hash(password, 10);
-
-    // 生成钱包
     const walletData = generateWallets();
-
-    // 创建用户
     const userId = crypto.randomUUID();
     const user = {
       id: userId,
@@ -338,11 +304,7 @@ app.post('/api/auth/register', async (req, res) => {
       password: hashedPassword,
       createdAt: new Date()
     };
-
-    // 保存用户
     users.set(username, user);
-
-    // 加密并保存钱包信息
     const encryptedWallets = {
       ethereum: {
         address: walletData.ethereum.address,
@@ -353,25 +315,13 @@ app.post('/api/auth/register', async (req, res) => {
         privateKey: encrypt(walletData.solana.privateKey)
       }
     };
-
     wallets.set(userId, encryptedWallets);
-
-    // 只在第一次注册时写入私钥到.env文件（如果.env文件为空）
-    // const { evmPrivateKey, solanaPrivateKey } = getPrivateKeysFromEnv();
-    // if (!evmPrivateKey || !solanaPrivateKey) {
-      writePrivateKeysToEnv(walletData.ethereum.privateKey, walletData.solana.privateKey);
-      console.log('✅ 首次注册，私钥已写入.env文件');
-    // } else {
-    //   console.log('ℹ️  .env文件已有私钥，跳过写入');
-    // }
-
-    // 生成JWT token
+    writePrivateKeysToEnv(walletData.ethereum.privateKey, walletData.solana.privateKey);
     const token = jwt.sign(
       { userId, username, email },
       JWT_SECRET,
       { expiresIn: '24h' }
     );
-
     res.status(201).json({
       user: {
         userId,
@@ -380,42 +330,56 @@ app.post('/api/auth/register', async (req, res) => {
       },
       token
     });
-
-  } catch (error) {
+  } catch (error: any) {
     console.error('注册错误:', error);
     res.status(500).json({ error: '注册失败' });
   }
 });
 
-// 用户登录
-app.post('/api/auth/login', async (req, res) => {
+/**
+ * @swagger
+ * /api/auth/login:
+ *   post:
+ *     summary: 用户登录
+ *     description: 用户登录并获取JWT
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               username:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 登录成功
+ *       400:
+ *         description: 参数错误
+ *       401:
+ *         description: 用户名或密码错误
+ */
+app.post('/api/auth/login', async (req: any, res: any) => {
   try {
     const { username, password } = req.body;
-
-    // 验证输入
     if (!username || !password) {
       return res.status(400).json({ error: '用户名和密码都是必需的' });
     }
-
-    // 查找用户
     const user = users.get(username);
     if (!user) {
       return res.status(401).json({ error: '用户名或密码错误' });
     }
-
-    // 验证密码
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
       return res.status(401).json({ error: '用户名或密码错误' });
     }
-
-    // 生成JWT token
     const token = jwt.sign(
       { userId: user.id, username: user.username, email: user.email },
       JWT_SECRET,
       { expiresIn: '24h' }
     );
-
     res.json({
       user: {
         userId: user.id,
@@ -424,87 +388,80 @@ app.post('/api/auth/login', async (req, res) => {
       },
       token
     });
-
-  } catch (error) {
+  } catch (error: any) {
     console.error('登录错误:', error);
     res.status(500).json({ error: '登录失败' });
   }
 });
 
-// 获取钱包信息
-app.get('/api/wallet/info', authenticateToken, async (req, res) => {
+/**
+ * @swagger
+ * /api/wallet/info:
+ *   get:
+ *     summary: 获取钱包信息
+ *     description: 获取当前用户的钱包地址和余额
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: 钱包信息
+ *       401:
+ *         description: 未授权
+ *       404:
+ *         description: 未找到私钥
+ */
+app.get('/api/wallet/info', authenticateToken, async (req: any, res: any) => {
   try {
     const { userId } = req.user;
-    
-    // 从.env文件读取私钥并生成公钥地址
     const { evmPrivateKey, solanaPrivateKey } = getPrivateKeysFromEnv();
-    
     if (!evmPrivateKey || !solanaPrivateKey) {
       return res.status(404).json({ error: '.env文件中未找到私钥配置' });
     }
-    
-    // 从私钥生成公钥地址
     let ethereumAddress, solanaAddress;
-    
     try {
-      // 生成Ethereum地址
       const ethereumWallet = new ethers.Wallet(evmPrivateKey);
       ethereumAddress = ethereumWallet.address;
       console.log(`🔑 从私钥生成Ethereum地址: ${ethereumAddress}`);
-    } catch (ethError) {
+    } catch (ethError: any) {
       console.error('❌ 生成Ethereum地址失败:', ethError.message);
       return res.status(500).json({ error: 'Ethereum私钥格式错误' });
     }
-    
     try {
-      // 生成Solana地址
       let solanaKeypair;
-      
-      // 检查私钥格式：如果是base58格式（通常以字母开头，长度约88字符）
       if (solanaPrivateKey.length > 80 && /^[1-9A-HJ-NP-Za-km-z]+$/.test(solanaPrivateKey)) {
-        // base58格式，需要转换为Uint8Array
-        const secretKey = bs58.default.decode(solanaPrivateKey);
+        const secretKey = bs58.decode(solanaPrivateKey);
         solanaKeypair = Keypair.fromSecretKey(secretKey);
         console.log(`🔑 使用base58格式Solana私钥`);
       } else {
-        // hex格式（现在.env文件中的私钥是hex格式）
         solanaKeypair = Keypair.fromSecretKey(Buffer.from(solanaPrivateKey, 'hex'));
         console.log(`🔑 使用hex格式Solana私钥`);
       }
-      
       solanaAddress = solanaKeypair.publicKey.toString();
       console.log(`🔑 从私钥生成Solana地址: ${solanaAddress}`);
-    } catch (solError) {
+    } catch (solError: any) {
       console.error('❌ 生成Solana地址失败:', solError.message);
       return res.status(500).json({ error: 'Solana私钥格式错误' });
     }
-
-    // 查询真实的区块链余额
     let ethereumBalance = '0';
     let solanaBalance = '0';
-
     try {
-      // 查询Ethereum余额
-      const ethereumProvider = new ethers.JsonRpcProvider(EVM_RPC_URL);
+      const ethereumProvider = new ethers.JsonRpcProvider(ETHEREUM_RPC_URL);
       const ethBalance = await ethereumProvider.getBalance(ethereumAddress);
       ethereumBalance = ethBalance.toString();
       console.log(`📊 Ethereum余额查询成功: ${ethereumAddress} = ${ethereumBalance} wei`);
-    } catch (ethError) {
+    } catch (ethError: any) {
       console.error('❌ Ethereum余额查询失败:', ethError.message);
       ethereumBalance = '0';
     }
-
     try {
-      // 查询Solana余额
       const solanaConnection = new Connection(SOLANA_RPC_URL);
       const solBalance = await solanaConnection.getBalance(new PublicKey(solanaAddress));
       solanaBalance = solBalance.toString();
       console.log(`📊 Solana余额查询成功: ${solanaAddress} = ${solanaBalance} lamports`);
-    } catch (solError) {
+    } catch (solError: any) {
       console.error('❌ Solana余额查询失败:', solError.message);
       solanaBalance = '0';
     }
-
     res.json({
       userId,
       ethereumAddress,
@@ -513,22 +470,32 @@ app.get('/api/wallet/info', authenticateToken, async (req, res) => {
       solanaBalance,
       createdAt: new Date()
     });
-
-  } catch (error) {
+  } catch (error: any) {
     console.error('获取钱包信息错误:', error);
     res.status(500).json({ error: '获取钱包信息失败' });
   }
 });
 
-// 创建新钱包
-app.post('/api/wallet/create', authenticateToken, async (req, res) => {
+/**
+ * @swagger
+ * /api/wallet/create:
+ *   post:
+ *     summary: 创建新钱包
+ *     description: 为当前用户创建新的以太坊和Solana钱包
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       201:
+ *         description: 新钱包创建成功
+ *       401:
+ *         description: 未授权
+ *       500:
+ *         description: 创建钱包失败
+ */
+app.post('/api/wallet/create', authenticateToken, async (req: any, res: any) => {
   try {
     const { userId } = req.user;
-    
-    // 生成新钱包
     const walletData = generateWallets();
-    
-    // 加密并保存钱包信息
     const encryptedWallets = {
       ethereum: {
         address: walletData.ethereum.address,
@@ -539,39 +506,28 @@ app.post('/api/wallet/create', authenticateToken, async (req, res) => {
         privateKey: encrypt(walletData.solana.privateKey)
       }
     };
-    
-    // 保存新钱包（覆盖旧钱包）
     wallets.set(userId, encryptedWallets);
-    
-    // 注意：不覆盖.env文件中的私钥，保持CCIP脚本使用的私钥不变
     console.log('ℹ️  创建新钱包，但保持.env文件中的私钥不变（用于CCIP脚本）');
-    
-    // 查询真实的区块链余额
     let ethereumBalance = '0';
     let solanaBalance = '0';
-
     try {
-      // 查询Ethereum余额
-      const ethereumProvider = new ethers.JsonRpcProvider(EVM_RPC_URL);
+      const ethereumProvider = new ethers.JsonRpcProvider(ETHEREUM_RPC_URL);
       const ethBalance = await ethereumProvider.getBalance(walletData.ethereum.address);
       ethereumBalance = ethBalance.toString();
       console.log(`📊 新钱包Ethereum余额查询成功: ${walletData.ethereum.address} = ${ethereumBalance} wei`);
-    } catch (ethError) {
+    } catch (ethError: any) {
       console.error('❌ 新钱包Ethereum余额查询失败:', ethError.message);
       ethereumBalance = '0';
     }
-
     try {
-      // 查询Solana余额
       const solanaConnection = new Connection(SOLANA_RPC_URL);
       const solBalance = await solanaConnection.getBalance(new PublicKey(walletData.solana.address));
       solanaBalance = solBalance.toString();
       console.log(`📊 新钱包Solana余额查询成功: ${walletData.solana.address} = ${solanaBalance} lamports`);
-    } catch (solError) {
+    } catch (solError: any) {
       console.error('❌ 新钱包Solana余额查询失败:', solError.message);
       solanaBalance = '0';
     }
-    
     res.status(201).json({
       success: true,
       message: '新钱包创建成功',
@@ -584,88 +540,154 @@ app.post('/api/wallet/create', authenticateToken, async (req, res) => {
         createdAt: new Date()
       }
     });
-    
-  } catch (error) {
+  } catch (error: any) {
     console.error('创建钱包错误:', error);
     res.status(500).json({ error: '创建钱包失败' });
   }
 });
 
-// 执行交易（示例：Ethereum转账）
-app.post('/api/transaction/ethereum', authenticateToken, async (req, res) => {
+/**
+ * @swagger
+ * /api/transaction/ethereum:
+ *   post:
+ *     summary: 执行以太坊转账
+ *     description: 使用当前用户钱包进行以太坊转账
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               to:
+ *                 type: string
+ *               amount:
+ *                 type: number
+ *               chainId:
+ *                 type: number
+ *     responses:
+ *       200:
+ *         description: 转账成功
+ *       401:
+ *         description: 未授权
+ *       500:
+ *         description: 转账失败
+ */
+app.post('/api/transaction/ethereum', authenticateToken, async (req: any, res: any) => {
   try {
     const { userId } = req.user;
     const { to, amount, chainId } = req.body;
-
     const userWallets = wallets.get(userId);
     if (!userWallets) {
       return res.status(404).json({ error: '钱包信息未找到' });
     }
-
-    // 解密私钥
     const privateKey = decrypt(userWallets.ethereum.privateKey);
-
-    // 创建provider和wallet（这里使用示例配置）
-    const provider = new ethers.JsonRpcProvider(process.env.ETHEREUM_RPC_URL || 'https://eth-sepolia.g.alchemy.com/v2/your-api-key');
+    const provider = new ethers.JsonRpcProvider(process.env.ETHEREUM_RPC_URL || 'https://sepolia.infura.io/v3/53602922191941a48de2b6d1a97f7999');
     const wallet = new ethers.Wallet(privateKey, provider);
-
-    // 构建交易
     const tx = {
       to: to,
       value: ethers.parseEther(amount.toString())
     };
-
-    // 发送交易
     const transaction = await wallet.sendTransaction(tx);
     const receipt = await transaction.wait();
-
+    if (!receipt) {
+      return res.status(500).json({ error: '交易回执为空' });
+    }
     res.json({
       success: true,
       transactionHash: receipt.hash,
       blockNumber: receipt.blockNumber
     });
-
-  } catch (error) {
+  } catch (error: any) {
     console.error('交易执行错误:', error);
     res.status(500).json({ error: '交易执行失败', details: error.message });
   }
 });
 
-// 执行Solana交易
-app.post('/api/transaction/solana', authenticateToken, async (req, res) => {
+/**
+ * @swagger
+ * /api/transaction/solana:
+ *   post:
+ *     summary: 执行Solana转账
+ *     description: 使用当前用户钱包进行Solana转账（功能待完善）
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               to:
+ *                 type: string
+ *               amount:
+ *                 type: number
+ *     responses:
+ *       200:
+ *         description: 转账成功（mock数据）
+ *       401:
+ *         description: 未授权
+ *       500:
+ *         description: 转账失败
+ */
+app.post('/api/transaction/solana', authenticateToken, async (req: any, res: any) => {
   try {
     const { userId } = req.user;
     const { to, amount } = req.body;
-
     const userWallets = wallets.get(userId);
     if (!userWallets) {
       return res.status(404).json({ error: '钱包信息未找到' });
     }
-
-    // 解密私钥
     const privateKey = decrypt(userWallets.solana.privateKey);
     const keypair = Keypair.fromSecretKey(Buffer.from(privateKey, 'hex'));
-
-    // 这里应该实现Solana交易逻辑
-    // 由于需要Solana Web3.js的完整实现，这里返回模拟结果
     res.json({
       success: true,
       transactionHash: 'mock-solana-tx-hash',
       message: 'Solana transaction functionality needs further implementation'
     });
-
-  } catch (error) {
+  } catch (error: any) {
     console.error('Solana transaction error:', error);
     res.status(500).json({ error: 'Solana transaction execution failed', details: error.message });
   }
 });
 
-// 跨链转账接口
-app.post('/api/ccip/transfer', async (req, res) => {
+/**
+ * @swagger
+ * /api/ccip/transfer:
+ *   post:
+ *     summary: 跨链转账
+ *     description: 发起一次Solana和Ethereum之间的跨链转账
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               tokenMint:
+ *                 type: string
+ *               tokenAmount:
+ *                 type: string
+ *               fromChain:
+ *                 type: string
+ *               toChain:
+ *                 type: string
+ *               receiver:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: 跨链转账成功
+ *       400:
+ *         description: 参数错误
+ *       500:
+ *         description: 转账失败
+ */
+app.post('/api/ccip/transfer', async (req: any, res: any) => {
   try {
     const { tokenMint, tokenAmount, fromChain, toChain, receiver } = req.body;
-    
-    // 验证必要参数
     if (!tokenMint || !tokenAmount || !fromChain || !toChain) {
       return res.status(400).json({ 
         error: 'Missing required parameters', 
@@ -673,36 +695,25 @@ app.post('/api/ccip/transfer', async (req, res) => {
         provided: { tokenMint, tokenAmount, fromChain, toChain, receiver }
       });
     }
-    
-    // 获取私钥
     const { evmPrivateKey, solanaPrivateKey } = getPrivateKeysFromEnv();
-    
     if (!evmPrivateKey || !solanaPrivateKey) {
       return res.status(500).json({ error: 'Private key not configured' });
     }
-    
-    // 获取接收者地址
     let targetReceiver = receiver;
     if (!targetReceiver) {
-      // 如果没有指定接收者，使用EVM私钥对应的地址
       targetReceiver = getPublicKeyFromPrivateKey(evmPrivateKey);
       if (!targetReceiver) {
         return res.status(500).json({ error: 'Unable to get receiver address' });
       }
     }
-    
-    // 构建命令
     let command = '';
     if (fromChain.toLowerCase() === 'solana' && toChain.toLowerCase() === 'ethereum') {
-      // Solana -> Ethereum
       command = `yarn svm:token-transfer -- --token-mint ${tokenMint} --token-amount ${tokenAmount} --receiver ${targetReceiver}`;
     } else if (fromChain.toLowerCase() === 'ethereum' && toChain.toLowerCase() === 'solana') {
-      // Ethereum -> Solana
       command = `yarn evm:token-transfer -- --token-address ${tokenMint} --token-amount ${tokenAmount} --receiver ${targetReceiver}`;
     } else {
       return res.status(400).json({ error: 'Unsupported cross-chain direction' });
     }
-    
     console.log('🚀 Executing cross-chain transfer command:', command);
     console.log('📋 Parameter details:', {
       tokenMint,
@@ -711,12 +722,9 @@ app.post('/api/ccip/transfer', async (req, res) => {
       toChain,
       receiver: targetReceiver
     });
-    
-    // 执行命令
-    const { exec } = require('child_process');
+    const exec = require('child_process').exec;
     const solanaDir = path.join(__dirname, 'hamsterai/solana-starter-kit1');
-    
-    exec(command, { cwd: solanaDir }, (error, stdout, stderr) => {
+    exec(command, { cwd: solanaDir }, (error: any, stdout: any, stderr: any) => {
       if (error) {
         console.error('❌ Cross-chain transfer failed:', error);
         console.error('stderr:', stderr);
@@ -727,7 +735,6 @@ app.post('/api/ccip/transfer', async (req, res) => {
           command: command
         });
       }
-      
       console.log('✅ Cross-chain transfer succeeded:', stdout);
       res.json({ 
         success: true, 
@@ -738,32 +745,38 @@ app.post('/api/ccip/transfer', async (req, res) => {
         params: { tokenMint, tokenAmount, fromChain, toChain, receiver: targetReceiver }
       });
     });
-    
-  } catch (error) {
+  } catch (error: any) {
     console.error('Cross-chain transfer API error:', error);
     res.status(500).json({ error: 'Cross-chain transfer failed', details: error.message });
   }
 });
 
-// 获取跨链转账状态
-app.get('/api/ccip/status', (req, res) => {
+/**
+ * @swagger
+ * /api/ccip/status:
+ *   get:
+ *     summary: 获取跨链转账状态
+ *     description: 查询跨链转账相关私钥配置和准备状态
+ *     responses:
+ *       200:
+ *         description: 状态信息
+ *       500:
+ *         description: 查询失败
+ */
+app.get('/api/ccip/status', (req: any, res: any) => {
   try {
     const { evmPrivateKey, solanaPrivateKey } = getPrivateKeysFromEnv();
-    
     if (!evmPrivateKey || !solanaPrivateKey) {
       return res.status(500).json({ error: 'Private key not configured' });
     }
-    
     const evmAddress = getPublicKeyFromPrivateKey(evmPrivateKey);
-    
     res.json({
       evmAddress: evmAddress,
       evmPrivateKeyConfigured: !!evmPrivateKey,
       solanaPrivateKeyConfigured: !!solanaPrivateKey,
       ready: !!(evmPrivateKey && solanaPrivateKey && evmAddress)
     });
-    
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to get cross-chain status:', error);
     res.status(500).json({ error: 'Failed to get cross-chain status' });
   }
@@ -773,7 +786,8 @@ app.get('/api/ccip/status', (req, res) => {
  * @swagger
  * /api/svm/token-transfer:
  *   post:
- *     summary: 发起SVM跨链转账
+ *     summary: SVM链Token转账
+ *     description: 通过SVM链脚本进行Token跨链转账
  *     requestBody:
  *       required: true
  *       content:
@@ -783,70 +797,81 @@ app.get('/api/ccip/status', (req, res) => {
  *             properties:
  *               tokenMint:
  *                 type: string
- *                 description: 代币mint地址
  *               tokenAmount:
  *                 type: string
- *                 description: 转账数量（最小单位）
  *               fromChain:
  *                 type: string
- *                 description: 源链
  *               toChain:
  *                 type: string
- *                 description: 目标链
  *               receiver:
  *                 type: string
- *                 description: 接收方地址
  *     responses:
  *       200:
- *         description: 转账结果
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 result:
- *                   type: object
- *                   description: 详细结果
+ *         description: 转账成功
+ *       400:
+ *         description: 参数不完整
+ *       500:
+ *         description: 转账失败
  */
-// ====== SVM Token Transfer API ======
-app.post('/api/svm/token-transfer', async (req, res) => {
+app.post('/api/svm/token-transfer', async (req: any, res: any) => {
   try {
-    // 动态引入，避免启动时依赖冲突
     const { runTokenTransfer } = require('./hamsterai/solana-starter-kit1/ccip-scripts/svm/router/api');
     const { tokenMint, tokenAmount, fromChain, toChain, receiver } = req.body;
+    console.log('🚀 接收到的参数:', { tokenMint, tokenAmount, fromChain, toChain, receiver });
     if (!tokenMint || !tokenAmount || !fromChain || !toChain || !receiver) {
       return res.status(400).json({ success: false, error: '参数不完整' });
     }
     const result = await runTokenTransfer({ tokenMint, tokenAmount, fromChain, toChain, receiver });
     res.json({ success: true, result });
-  } catch (err) {
+  } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// 健康检查
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+/**
+ * @swagger
+ * /api/health:
+ *   get:
+ *     summary: 健康检查
+ *     description: 检查后端服务健康状态
+ *     responses:
+ *       200:
+ *         description: 服务正常
+ *       500:
+ *         description: 服务异常
+ */
+app.get('/api/health', (req: any, res: any) => {
+  try {
+    res.json({ status: 'OK', timestamp: new Date().toISOString() });
+  } catch (error: any) {
+    console.error('健康检查接口异常:', error);
+    res.status(500).json({ status: 'ERROR', error: error.message });
+  }
 });
 
-// 查看当前私钥（仅用于开发调试）
-app.get('/api/debug/private-keys', (req, res) => {
+/**
+ * @swagger
+ * /api/debug/private-keys:
+ *   get:
+ *     summary: 查看当前私钥（开发调试）
+ *     description: 查看.env文件中的私钥信息（仅开发环境使用）
+ *     responses:
+ *       200:
+ *         description: 私钥信息
+ *       500:
+ *         description: 读取失败
+ */
+app.get('/api/debug/private-keys', (req: any, res: any) => {
   try {
     const mainEnvPath = path.join(__dirname, '.env');
     const solanaEnvPath = path.join(__dirname, 'hamsterai/solana-starter-kit1/.env');
-    
-    let mainEvmPrivateKey = null;
-    let mainSolanaPrivateKey = null;
-    let solanaEvmPrivateKey = null;
-    let solanaSolanaPrivateKey = null;
-    
-    // 读取主后端.env文件
+    let mainEvmPrivateKey: any = null;
+    let mainSolanaPrivateKey: any = null;
+    let solanaEvmPrivateKey: any = null;
+    let solanaSolanaPrivateKey: any = null;
     if (fs.existsSync(mainEnvPath)) {
       const mainEnvContent = fs.readFileSync(mainEnvPath, 'utf8');
       const mainLines = mainEnvContent.split('\n');
-      
       for (const line of mainLines) {
         if (line.startsWith('EVM_PRIVATE_KEY=')) {
           mainEvmPrivateKey = line.split('=')[1];
@@ -856,12 +881,9 @@ app.get('/api/debug/private-keys', (req, res) => {
         }
       }
     }
-    
-    // 读取solana-starter-kit1/.env文件
     if (fs.existsSync(solanaEnvPath)) {
       const solanaEnvContent = fs.readFileSync(solanaEnvPath, 'utf8');
       const solanaLines = solanaEnvContent.split('\n');
-      
       for (const line of solanaLines) {
         if (line.startsWith('EVM_PRIVATE_KEY=')) {
           solanaEvmPrivateKey = line.split('=')[1];
@@ -871,7 +893,6 @@ app.get('/api/debug/private-keys', (req, res) => {
         }
       }
     }
-    
     res.json({
       message: 'Private key information',
       mainBackend: {
@@ -887,21 +908,20 @@ app.get('/api/debug/private-keys', (req, res) => {
         solanaPrivateKeyFull: solanaSolanaPrivateKey
       }
     });
-    
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to read private key:', error);
     res.status(500).json({ error: 'Failed to read private key' });
   }
 });
 
 // 错误处理中间件
-app.use((err, req, res, next) => {
+app.use((err: any, req: any, res: any, next: any) => {
   console.error(err.stack);
   res.status(500).json({ error: 'Internal server error' });
 });
 
 // ====== Swagger文档路由注册在所有接口之后 ======
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use('/api-docs', swaggerUiAny.serve, swaggerUiAny.setup(swaggerSpec));
 
 // 启动服务器
 app.listen(PORT, () => {
@@ -910,4 +930,4 @@ app.listen(PORT, () => {
   console.log(`Swagger docs: http://localhost:${PORT}/api-docs`);
 });
 
-module.exports = app; 
+export default app; 

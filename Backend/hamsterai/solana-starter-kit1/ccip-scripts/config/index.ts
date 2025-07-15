@@ -292,7 +292,7 @@ export function getEVMConfig(chainId: ChainId): EVMChainConfig {
   // Determine the environment variable name and load the RPC URL based on the chainId.
   switch (chainId) {
     case ChainId.ETHEREUM_SEPOLIA:
-      envVarName = "EVM_RPC_URL";
+      envVarName = "ETHEREUM_RPC_URL";
       config.rpcUrl = process.env[envVarName];
       break;
     case ChainId.BASE_SEPOLIA:

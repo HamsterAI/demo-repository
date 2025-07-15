@@ -1,6 +1,7 @@
 import { LogLevel } from "../../../ccip-lib/svm";
 import { resolve } from "path";
-
+import dotenv from 'dotenv';
+  dotenv.config({ path: '/Users/sun/Solana/solana_Aimax/HamsterAI/demo-repository/Backend/hamsterai/solana-starter-kit1/.env' });
 /**
  * Default keypair paths
  */
@@ -127,6 +128,7 @@ export function parseCommonArgs(): CommonOptions {
 export function getKeypairPath(options: CommonOptions): string {
   // If environment variable is set, use it (will be handled in provider.ts)
   if (process.env.SOLANA_PRIVATE_KEY) {
+    console.log(process.env.SOLANA_PRIVATE_KEY);
     console.log('Using SOLANA_PRIVATE_KEY from environment variable');
     return 'env://SOLANA_PRIVATE_KEY';
   }

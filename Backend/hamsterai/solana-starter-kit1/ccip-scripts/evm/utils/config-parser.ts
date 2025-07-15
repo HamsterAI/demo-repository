@@ -304,6 +304,6 @@ export function printUsage(scriptName: string): void {
   console.log(
     "  EVM_PRIVATE_KEY                 Private key for signing transactions"
   );
-  console.log("  EVM_RPC_URL                     Custom RPC URL (optional)");
+  console.log("  ETHEREUM_RPC_URL                     Custom RPC URL (optional)");
   console.log("");
 }

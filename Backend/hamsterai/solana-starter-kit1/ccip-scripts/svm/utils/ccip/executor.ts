@@ -394,7 +394,7 @@ export async function executeCCIPScript({
       }
     }
     printUsage(usageName);
-    process.exit(1);
+    throw error;
   }
 }
 
