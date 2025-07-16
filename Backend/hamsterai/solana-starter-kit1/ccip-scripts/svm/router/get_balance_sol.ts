@@ -14,7 +14,7 @@ export async function getBalanceSolana(tokenMint){
         if(!solanaPrivateKey) throw new Error("SOLANA_PRIVATE_KEY is not set");
         const solanaAddress = Keypair.fromSecretKey(Buffer.from(process.env.SOLANA_PRIVATE_KEY,"hex"));
 
-
+        console.log("solanaAddress",solanaAddress.publicKey.toString());
         // get solana connection
         const solanaConnection = new Connection(SOLANA_RPC_URL);
         
@@ -26,27 +26,21 @@ export async function getBalanceSolana(tokenMint){
 
             const accountInfo = await getAccount(solanaConnection,associatedTokenAddress);
             return {
-                address: solanaAddress.publicKey.toString(),
-                tokenMint: tokenMint,
+                //address: solanaAddress.publicKey.toString(),
+                //tokenMint: tokenMint,
                 rawBalance: accountInfo.amount.toString(),
                 formattedBalance: (Number(accountInfo.amount) / 1e9).toString(),
                 decimals: 9
               };
         }
         else {
-            const accounts = await solanaConnection.getParsedTokenAccountsByOwner(
-                new PublicKey(solanaAddress.publicKey),
-                { programId: TOKEN_PROGRAM_ID }
-              );
-              return accounts.value.map(({ account }) => {
-                const info = account.data.parsed.info;
-                return {
-                  tokenMint: info.mint,
-                  rawBalance: info.tokenAmount.amount,
-                  formattedBalance: info.tokenAmount.uiAmountString,
-                  decimals: info.tokenAmount.decimals
-                };
-              });
+            const solBalance = await solanaConnection.getBalance(solanaAddress.publicKey);
+            return {
+              //address: solanaAddress.publicKey.toString(),
+              rawBalance: solBalance.toString(),
+              formattedBalance: (solBalance / 1e9).toString(),
+              decimals: 9
+            };
         }
 
     }catch(error){

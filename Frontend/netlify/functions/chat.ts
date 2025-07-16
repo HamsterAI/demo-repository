@@ -10,6 +10,13 @@ const execAsync = promisify(exec);
 // 简单的转账状态存储（在生产环境中应该使用数据库）
 const transferStatus = new Map<string, any>();
 
+const tokenNameToMintMap = new Map<string, string>([
+  ['bnmtoken', '3PjyGzj1jGVgHSKS4VR1Hr1memm63PmN8L9rtPDKwzZ6'],
+  ['usdc', 'Es9vMFrzaCERZ8r9nVb9n5r1t6r1t6r1t6r1t6r1t6r1'],
+  // ...更多token
+]);
+
+
 // 生成转账任务ID
 function generateTransferId(): string {
   return `transfer_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -475,7 +482,7 @@ export const handler: Handler = async (event) => {
     let userFriendlyResponse = aiResponse; // 默认使用AI原始回复
     console.log('Checking intent type:', parsedIntent?.intent);
     console.log('parsedIntent exists:', !!parsedIntent);
-    console.log('Intent match result:', parsedIntent && (parsedIntent.intent === 'withdraw' || parsedIntent.intent === 'transfer'));
+    console.log('Intent match result:', parsedIntent && (parsedIntent.intent === 'withdraw' || parsedIntent.intent === 'transfer'||parsedIntent.intent === 'query'));
     
     if (parsedIntent && (parsedIntent.intent === 'withdraw' || parsedIntent.intent === 'transfer')) {
       try {
@@ -494,16 +501,16 @@ export const handler: Handler = async (event) => {
         // 构建用户友好的回复
         userFriendlyResponse = `🚀 **Cross-chain Transfer Request Confirmed**
 
-📋 **Transfer Details:**
-• **Token Type**: ${assetType}
-• **Transfer Amount**: ${amount} ${assetType}
-• **Source Chain**: ${fromChain.charAt(0).toUpperCase() + fromChain.slice(1)}
-• **Target Chain**: ${toChain.charAt(0).toUpperCase() + toChain.slice(1)}
-• **Receiver Address**: ${receiverAddress.slice(0, 6)}...${receiverAddress.slice(-4)}
+          📋 **Transfer Details:**
+          • **Token Type**: ${assetType}
+          • **Transfer Amount**: ${amount} ${assetType}
+          • **Source Chain**: ${fromChain.charAt(0).toUpperCase() + fromChain.slice(1)}
+          • **Target Chain**: ${toChain.charAt(0).toUpperCase() + toChain.slice(1)}
+          • **Receiver Address**: ${receiverAddress.slice(0, 6)}...${receiverAddress.slice(-4)}
 
-⏳ **Status**: Preparing transfer, please wait...
+          ⏳ **Status**: Preparing transfer, please wait...
 
-_The system will automatically execute the transfer operation. You can view real-time status through the progress indicator below._`;
+          _The system will automatically execute the transfer operation. You can view real-time status through the progress indicator below._`;
         
         // 先返回正在转移的消息，然后异步执行转账
         const transferId = generateTransferId();
@@ -536,12 +543,46 @@ _The system will automatically execute the transfer operation. You can view real
         // 如果转账准备失败，返回错误信息
         userFriendlyResponse = `❌ **Transfer Preparation Failed**
 
-${transferError instanceof Error ? transferError.message : 'Unknown error'}
+      ${transferError instanceof Error ? transferError.message : 'Unknown error'}
 
-_Please check if your transfer request format is correct, or try again later._`;
+      _Please check if your transfer request format is correct, or try again later._`;
       }
-    } else {
-      console.log('Not a cross-chain transfer intent or parsedIntent is empty');
+    } 
+    else if (parsedIntent && parsedIntent.intent === 'query') {
+      const chain = parsedIntent.entities.chain?.toLowerCase();
+      let tokenMint = undefined;
+      // 如果是主币，tokenMint 不传
+      // 如果是 token，需要查表获得 mint 地址
+      if (parsedIntent.entities.asset_type && parsedIntent.entities.asset_type !== 'SOL' && parsedIntent.entities.asset_type !== 'ETH') {
+        // 这里建议维护一个 token 名称到 mint 地址的映射表
+        tokenMint = tokenNameToMintMap.get(parsedIntent.entities.asset_type.toLowerCase());
+      }
+      // 构造请求
+      const url = new URL('http://localhost:3001/api/ccip/balance');
+      url.searchParams.set('chain', chain);
+      if (tokenMint) url.searchParams.set('tokenMint', tokenMint);
+    
+      const res = await fetch(url.toString());
+      interface BalanceResponse {
+        success: boolean;
+        balance: any;
+        error?: string;
+        usage?: any;
+      }
+      const data = await res.json() as BalanceResponse;
+      // 格式化返回
+      if (data.success) {
+        if (Array.isArray(data.balance)) {
+          userFriendlyResponse = `你在${chain}上的所有Token余额如下：\n` + data.balance.map(
+            t => `${t.tokenMint}: ${t.formattedBalance}`
+          ).join('\n');
+        } else {
+          userFriendlyResponse = `你在${chain}上的余额为：${data.balance.formattedBalance}`;
+        }
+      } else {
+        userFriendlyResponse = `查询失败：${data.error}`;
+      }
+      // 返回给前端
     }
 
     // 返回成功响应，包含美化后的AI回复、解析的意图和使用统计

@@ -13,8 +13,8 @@ export async function getBalanceEvm(tokenAddress?: string) {
     const ETHEREUM_RPC_URL = process.env.ETHEREUM_RPC_URL;
     if (!ETHEREUM_RPC_URL) throw new Error("ETHEREUM_RPC_URL is not set");
 
-    const ethereumPrivateKey = process.env.ETHEREUM_PRIVATE_KEY;
-    if (!ethereumPrivateKey) throw new Error("ETHEREUM_PRIVATE_KEY is not set");
+    const ethereumPrivateKey = process.env.EVM_PRIVATE_KEY;
+    if (!ethereumPrivateKey) throw new Error("EVM_PRIVATE_KEY is not set");
 
     const wallet = new Wallet(ethereumPrivateKey);
     const provider = new ethers.JsonRpcProvider(ETHEREUM_RPC_URL);
@@ -27,8 +27,8 @@ export async function getBalanceEvm(tokenAddress?: string) {
         tokenContract.decimals().catch(() => 18) // some contracts don't have decimals, default 18
       ]);
       return {
-        address: wallet.address,
-        tokenAddress,
+        //address: wallet.address,
+        //tokenAddress,
         rawBalance: balance.toString(),
         formattedBalance: ethers.formatUnits(balance, decimals),
         decimals
@@ -37,9 +37,11 @@ export async function getBalanceEvm(tokenAddress?: string) {
       // check ETH balance
       const balance = await provider.getBalance(wallet.address);
       return {
-        address: wallet.address,
+        //address: wallet.address,
+        //tokenAddress: wallet.address,
         rawBalance: balance.toString(),
-        formattedBalance: ethers.formatEther(balance)
+        formattedBalance: ethers.formatEther(balance),
+        decimals: 18
       };
     }
   } catch (err: any) {

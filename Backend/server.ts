@@ -815,7 +815,7 @@ app.get('/api/ccip/status', (req: any, res: any) => {
  */
 app.post('/api/svm/token-transfer', async (req: any, res: any) => {
   try {
-    const { runTokenTransfer } = require('./hamsterai/solana-starter-kit1/ccip-scripts/svm/router/api');
+    const { runTokenTransfer } = require('./hamsterai/solana-starter-kit1/ccip-scripts/svm/router/token_transfer_api');
     const { tokenMint, tokenAmount, fromChain, toChain, receiver } = req.body;
     console.log('🚀 接收到的参数:', { tokenMint, tokenAmount, fromChain, toChain, receiver });
     if (!tokenMint || !tokenAmount || !fromChain || !toChain || !receiver) {
@@ -956,11 +956,12 @@ app.get('/api/ccip/balance',async(req:any,res:any)=>{
   try{
     const {tokenMint,chain} = req.query;
     const{getBalanceSolana} = require('./hamsterai/solana-starter-kit1/ccip-scripts/svm/router/get_balance_sol');
-    const{getBalanceEvm} = require('./hamsterai/solana-starter-kit1/ccip-scripts/svm/router/get_balance_evm');
+    const{getBalanceEvm} = require('./hamsterai/solana-starter-kit1/ccip-scripts/evm/router/get_balance_evm');
     let balance ;
+    console.log("chain",chain);
     if(chain === 'solana'){
       balance = await getBalanceSolana(tokenMint);
-    }else if(chain === 'evm'){
+    }else if(chain === 'Ethereum'||chain === 'ethereum'){
       balance = await getBalanceEvm(tokenMint);
     }else{
       return res.status(400).json({success:false,error:'Invalid chain'});

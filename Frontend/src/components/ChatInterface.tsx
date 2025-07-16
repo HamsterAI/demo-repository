@@ -23,6 +23,7 @@ import {
 import { chatService, ChatMessage, InvestmentIntent } from "../services/chatService";
 import { checkTransferStatus } from "../services/chatService";
 import { walletService, UserWallet } from "../services/walletService";
+import CountUp from 'react-countup';
 
 // 聊天会话接口定义，用于管理多个聊天对话
 interface ChatSession {
@@ -426,6 +427,32 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ isLoggedIn, onLoginClick 
   const renderMessageContent = (content: string, sender: string, transferStatus?: any) => {
     const isAssistant = sender === 'assistant';
     
+    // 检查是否是余额查询回复
+    if (isAssistant && /余额为[:：]\s*([\d.]+)/.test(content)) {
+      // 提取余额数字
+      const match = content.match(/余额为[:：]\s*([\d.]+)/);
+      const balance = match ? parseFloat(match[1]) : 0;
+      // 提取链名和币种
+      const chainMatch = content.match(/你在(\w+)上的(\w+)?余额为/);
+      const chain = chainMatch ? chainMatch[1] : '';
+      const token = chainMatch && chainMatch[2] ? chainMatch[2] : '';
+
+      return (
+        <div className="flex items-center space-x-3 py-2">
+          <span className="text-2xl font-bold text-green-600 animate-pulse">💰</span>
+          <div>
+            <div className="text-base font-semibold text-slate-800">
+              Your <span className="text-purple-600 font-bold mx-1">{token}</span> balance on <span className="text-blue-600 font-bold mx-1">{chain}</span> is:
+            </div>
+            <div className="text-3xl font-extrabold text-green-600 mt-1">
+              <CountUp end={balance} decimals={4} duration={1.2} />
+              <span className="ml-1 text-lg text-slate-500">{token}</span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     console.log('🔍 渲染消息内容:', { 
       content: content.substring(0, 100), 
       sender, 
