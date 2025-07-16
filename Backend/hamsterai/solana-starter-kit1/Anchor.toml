@@ -9,10 +9,9 @@ exclude = ["programs/chainlink_solana_demo"]
 
 [programs.devnet]
 ccip-basic-receiver = "BqmcnLFSbKwyMEgi7VhVeJCis1wW26VySztF34CJrKFq"
-chainlink-solana-demo = "Gwdjt5fAZfhUyxXSrCKE5uGiHnbfx5ZhueEbnZToMRNJ"
 
 [programs.localnet]
-chainlink-solana-demo = "6CedoTJCV5S1jLDrhhyhhtanC56YiKD96bU34iwuPR2j"
+
 
 [registry]
 url = "https://api.apr.dev"
