@@ -19,19 +19,33 @@ export async function getBalanceSolana(tokenMint){
         const solanaConnection = new Connection(SOLANA_RPC_URL);
         
         if(tokenMint){
-            const associatedTokenAddress = getAssociatedTokenAddressSync(tokenMint,solanaAddress.publicKey);
+            const associatedTokenAddress = getAssociatedTokenAddressSync(
+                new PublicKey(tokenMint),
+                solanaAddress.publicKey
+            );
 
             const accountInfo = await getAccount(solanaConnection,associatedTokenAddress);
-            return accountInfo.amount;
+            return {
+                address: solanaAddress.publicKey.toString(),
+                tokenMint: tokenMint,
+                rawBalance: accountInfo.amount.toString(),
+                formattedBalance: (Number(accountInfo.amount) / 1e9).toString(),
+                decimals: 9
+              };
         }
         else {
             const accounts = await solanaConnection.getParsedTokenAccountsByOwner(
                 new PublicKey(solanaAddress.publicKey),
                 { programId: TOKEN_PROGRAM_ID }
               );
-              accounts.value.forEach(({ account }) => {
+              return accounts.value.map(({ account }) => {
                 const info = account.data.parsed.info;
-                console.log('Token Mint:', info.mint, '余额:', info.tokenAmount.uiAmountString);
+                return {
+                  tokenMint: info.mint,
+                  rawBalance: info.tokenAmount.amount,
+                  formattedBalance: info.tokenAmount.uiAmountString,
+                  decimals: info.tokenAmount.decimals
+                };
               });
         }
 

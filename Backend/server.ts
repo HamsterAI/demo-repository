@@ -914,6 +914,65 @@ app.get('/api/debug/private-keys', (req: any, res: any) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/ccip/balance:
+ *   get:
+ *     summary: 查询链上Token余额
+ *     description: 根据链类型和Token Mint地址查询Solana或EVM链上的Token余额。
+ *     parameters:
+ *       - in: query
+ *         name: chain
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [solana, evm]
+ *         description: 链类型（solana 或 evm）
+ *       - in: query
+ *         name: tokenMint
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Token的Mint地址（不传则查主币余额）
+ *     responses:
+ *       200:
+ *         description: 查询成功，返回余额信息
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 balance:
+ *                   type: object
+ *                   description: 余额信息，结构与链类型和token相关
+ *       400:
+ *         description: 参数错误
+ *       500:
+ *         description: 查询失败
+ */
+app.get('/api/ccip/balance',async(req:any,res:any)=>{
+  try{
+    const {tokenMint,chain} = req.query;
+    const{getBalanceSolana} = require('./hamsterai/solana-starter-kit1/ccip-scripts/svm/router/get_balance_sol');
+    const{getBalanceEvm} = require('./hamsterai/solana-starter-kit1/ccip-scripts/svm/router/get_balance_evm');
+    let balance ;
+    if(chain === 'solana'){
+      balance = await getBalanceSolana(tokenMint);
+    }else if(chain === 'evm'){
+      balance = await getBalanceEvm(tokenMint);
+    }else{
+      return res.status(400).json({success:false,error:'Invalid chain'});
+    }
+
+    res.json({success:true,balance});
+  }catch(error:any){
+    res.status(500).json({success:false,error:error.message});
+  }
+})
+
+
 // 错误处理中间件
 app.use((err: any, req: any, res: any, next: any) => {
   console.error(err.stack);
